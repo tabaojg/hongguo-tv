@@ -492,6 +492,23 @@
   var portraitBackdrop = null;
   var endRecommendationIndex = 0, endRecommendationAnimation = 0, endRecommendationReadyCleanup = null;
   var nextSeasonHint = typeof HongguoNextSeasonHint !== 'undefined' ? HongguoNextSeasonHint.create({ show: showNextSeasonHint, hide: hideNextSeasonHint }) : null;
+  var playerClockNode = document.getElementById('player-clock');
+  var playerClock = typeof HongguoPlayerClock !== 'undefined' && playerClockNode
+    ? HongguoPlayerClock.mount(playerClockNode, { label: function (now) { return HongguoPlayerClock.formatLabel(now); } })
+    : null;
+  function showPlayerClock() {
+    if (!playerClock || !playerClockNode) return;
+    playerClockNode.classList.remove('is-hidden');
+    playerClockNode.removeAttribute('aria-hidden');
+    playerClock.update();
+    playerClock.start();
+  }
+  function hidePlayerClock() {
+    if (!playerClock || !playerClockNode) return;
+    playerClock.stop();
+    playerClockNode.classList.add('is-hidden');
+    playerClockNode.setAttribute('aria-hidden', 'true');
+  }
   var endRecommendations = HongguoEndRecommendations.create({
     isCurrent: function (playback) {
       return !!(playback && activePlayback === playback && playback.owner === accountEpoch && playback.generation === feedGeneration &&
@@ -3522,6 +3539,7 @@
     flushNotificationPopup();
   }
   function resetPlayerUI() {
+    if (typeof hidePlayerClock === 'function') hidePlayerClock();
     cancelPendingAutoCinema();
     resetEndRecommendations();
     episodePrefetch.cancel(); cancelPlaybackPreparation();
@@ -5643,6 +5661,7 @@
     clearRangeStallTimer();
     presentation.waiting = false;
     playback.started = true;
+    if (typeof showPlayerClock === 'function') showPlayerClock();
     playback.stableSince = Date.now();
     if (playback.autoRecommendation && !playback.autoRecommendationRecorded && playback.item && playback.item.series_id) {
       playback.autoRecommendationRecorded = true;
