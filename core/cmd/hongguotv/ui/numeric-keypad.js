@@ -20,18 +20,36 @@
   function create(options) {
     var active = false, kind = '', value = '', error = '', index = 0;
     var phonePolicy = { code: '+86', localeKey: 'country.mainlandChina', minLength: 11, maxLength: 11 };
+    var episodePolicy = { minLength: 1, maxLength: 4 };
     function phoneValid(digits) {
       if (!phonePolicy || digits.length < phonePolicy.minLength || digits.length > phonePolicy.maxLength || !/^[0-9]+$/.test(digits)) return false;
       return phonePolicy.code !== '+86' || /^1[3-9][0-9]{9}$/.test(digits);
     }
+    // Episode numbers are plain positive integers within a configurable width
+    // (the caller passes the drama's total-episode digit count as maxLength).
+    function episodeValid(digits) {
+      if (!episodePolicy || !/^[0-9]+$/.test(digits)) return false;
+      if (digits.length < episodePolicy.minLength || digits.length > episodePolicy.maxLength) return false;
+      return Number(digits) >= 1;
+    }
+    function fieldLimit() {
+      if (kind === 'phone') return phonePolicy ? phonePolicy.maxLength : 11;
+      if (kind === 'episode') return episodePolicy ? episodePolicy.maxLength : 4;
+      return 8;
+    }
     function snapshot() { return { open: active, kind: kind, value: value, error: error, index: index,
-      minLength: kind === 'phone' ? phonePolicy.minLength : 4, maxLength: kind === 'phone' ? phonePolicy.maxLength : 8,
+      minLength: kind === 'phone' ? phonePolicy.minLength : kind === 'episode' ? episodePolicy.minLength : 4,
+      maxLength: fieldLimit(),
       countryCode: kind === 'phone' ? phonePolicy.code : '', countryName: kind === 'phone' ? countryName(phonePolicy) : '' }; }
     function render() { if (options.render) options.render(snapshot()); }
     function open(field, initial, policy) {
-      if (active || (field !== 'phone' && field !== 'code')) return false;
+      if (active || (field !== 'phone' && field !== 'code' && field !== 'episode')) return false;
       if (field === 'phone' && policy) phonePolicy = policy;
-      active = true; kind = field; value = String(initial || '').replace(/[^0-9]/g, '').slice(0, field === 'phone' ? phonePolicy.maxLength : 8); error = ''; index = 0;
+      if (field === 'episode' && policy) {
+        var max = Number(policy.maxLength);
+        episodePolicy = { minLength: 1, maxLength: max > 0 && isFinite(max) ? Math.max(1, Math.floor(max)) : 4 };
+      } else if (field === 'episode') episodePolicy = { minLength: 1, maxLength: 4 };
+      active = true; kind = field; value = String(initial || '').replace(/[^0-9]/g, '').slice(0, fieldLimit()); error = ''; index = 0;
       render(); return true;
     }
     function close(reason) {
@@ -57,13 +75,21 @@
     function press(key) {
       if (!active) return false;
       if (key === 'done') {
-        var valid = kind === 'phone' ? phoneValid(value) : /^[0-9]{4,8}$/.test(value);
-        if (!valid) { error = kind === 'phone' ? t('content.phoneInvalid', '请输入正确的{country}手机号', { country: countryName(phonePolicy) }) : t('content.codeInvalid', '请输入4至8位验证码'); render(); return true; }
+        var valid = kind === 'phone' ? phoneValid(value) : kind === 'episode' ? episodeValid(value) : /^[0-9]{4,8}$/.test(value);
+        if (!valid) {
+          if (kind === 'episode') error = t('content.episodeJumpInvalid', '请输入 1 至 {max} 之间的集数', { max: episodePolicy.maxLength });
+          else error = kind === 'phone' ? t('content.phoneInvalid', '请输入正确的{country}手机号', { country: countryName(phonePolicy) }) : t('content.codeInvalid', '请输入4至8位验证码');
+          render(); return true;
+        }
         return close('complete');
       }
       if (key === 'delete') value = value.slice(0, -1);
       else if (/^[0-9]$/.test(key)) {
-        if (value.length >= (kind === 'phone' ? phonePolicy.maxLength : 8)) { error = kind === 'phone' ? t('content.phoneMax', '手机号最多{count}位', { count: phonePolicy.maxLength }) : t('content.codeMax', '验证码最多8位'); render(); return true; }
+        if (value.length >= fieldLimit()) {
+          if (kind === 'episode') error = t('content.episodeJumpMax', '集数最多 {max} 位', { max: episodePolicy.maxLength });
+          else error = kind === 'phone' ? t('content.phoneMax', '手机号最多{count}位', { count: phonePolicy.maxLength }) : t('content.codeMax', '验证码最多8位');
+          render(); return true;
+        }
         value += key;
       } else return false;
       error = '';
@@ -83,7 +109,9 @@
       return true;
     }
     function completeRemote(field, digits) {
-      if (!active || field !== kind || typeof digits !== 'string' || !(kind === 'phone' ? phoneValid(digits) : /^[0-9]{4,8}$/.test(digits))) return false;
+      if (!active || field !== kind || typeof digits !== 'string') return false;
+      var valid = kind === 'phone' ? phoneValid(digits) : kind === 'episode' ? episodeValid(digits) : /^[0-9]{4,8}$/.test(digits);
+      if (!valid) return false;
       value = digits;
       if (options.change) options.change(kind, value);
       return close('complete');

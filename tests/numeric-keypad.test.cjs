@@ -45,3 +45,36 @@ test('context replacement and background close exactly once and do not complete 
     assert.equal(f.pad.handleKey('1'),false);assert.equal(f.pad.press('1'),false);assert.equal(f.pad.snapshot().value,'');
   }
 });
+test('episode accepts 1..N digit numbers within the caller-supplied width',()=>{
+  const f=fixture();assert.equal(f.pad.open('episode','',{maxLength:3}),true);
+  assert.equal(f.pad.snapshot().minLength,1);assert.equal(f.pad.snapshot().maxLength,3);
+  for(const digit of '200') f.pad.press(digit);
+  f.pad.press('done');assert.deepEqual(f.closes,[{kind:'episode',value:'200',reason:'complete'}]);
+});
+test('episode keeps short numbers like 5 valid without padding to four digits',()=>{
+  const f=fixture();f.pad.open('episode','',{maxLength:3});
+  f.pad.press('5');f.pad.press('done');
+  assert.deepEqual(f.closes,[{kind:'episode',value:'5',reason:'complete'}]);
+});
+test('episode rejects zero and empty input while keeping the keypad open',()=>{
+  for(const value of ['0','']){
+    const f=fixture();f.pad.open('episode',value,{maxLength:3});f.pad.press('done');
+    assert.equal(f.pad.isOpen(),true);assert.ok(f.pad.snapshot().error);assert.equal(f.closes.length,0);
+  }
+});
+test('episode blocks overflow past the total-episode width',()=>{
+  const f=fixture();f.pad.open('episode','',{maxLength:2});
+  f.pad.press('1');f.pad.press('2');f.pad.press('3');
+  assert.equal(f.pad.snapshot().value,'12');assert.match(f.pad.snapshot().error,/最多 2 位/);
+});
+test('episode completeRemote validates the same range as the done key',()=>{
+  const f=fixture();f.pad.open('episode','',{maxLength:3});
+  assert.equal(f.pad.completeRemote('episode','0'),false);
+  assert.equal(f.pad.completeRemote('episode','1234'),false);
+  assert.equal(f.pad.completeRemote('episode','88'),true);
+  assert.deepEqual(f.closes,[{kind:'episode',value:'88',reason:'complete'}]);
+});
+test('episode changes never leak into the account change callback',()=>{
+  const f=fixture();f.pad.open('episode','',{maxLength:3});f.pad.press('7');
+  assert.deepEqual(f.changes,[{kind:'episode',value:'7'}]);
+});

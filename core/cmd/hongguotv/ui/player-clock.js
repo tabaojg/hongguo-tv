@@ -38,6 +38,26 @@
     return host.classList.contains('is-hidden') || host.getAttribute('aria-hidden') === 'true';
   }
 
+  // Wall-clock source: prefer the Android system clock exposed through the
+  // HongguoTVClock JavaScriptInterface (epoch millis in the device timezone),
+  // and fall back to the web clock everywhere else (desktop/webOS/tests).
+  // `host` is injectable so this stays testable without a real window.
+  function systemNow(host) {
+    var scope = host || (typeof window !== 'undefined' ? window : null);
+    var bridge = scope && scope.HongguoTVClock;
+    if (bridge && typeof bridge.currentTimeMillis === 'function') {
+      try {
+        var millis = bridge.currentTimeMillis();
+        if (typeof millis === 'number' && isFinite(millis) && millis > 0) {
+          return new Date(millis);
+        }
+      } catch (e) {
+        // Bridge may be torn down during navigation; fall through to web time.
+      }
+    }
+    return new Date();
+  }
+
   function mount(element, options) {
     options = options || {};
     var doc = element && element.ownerDocument;
@@ -96,6 +116,7 @@
   return {
     formatTime: formatTime,
     formatLabel: formatLabel,
+    systemNow: systemNow,
     mount: mount
   };
 }));

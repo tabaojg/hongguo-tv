@@ -139,6 +139,14 @@ public class MainActivity extends Activity {
                 return DeviceDiagnostics.isTelevision(MainActivity.this);
             }
         }, "HongguoTVDiagnostics");
+        // Wall-clock time sourced from the Android system clock. The web clock
+        // can drift on long-lived TV sessions; JS asks this bridge for the
+        // authoritative epoch millis and formats them in the device timezone.
+        webView.addJavascriptInterface(new Object() {
+            @JavascriptInterface public long currentTimeMillis() {
+                return System.currentTimeMillis();
+            }
+        }, "HongguoTVClock");
         webView.addJavascriptInterface(new PlaybackPreferences(this), "HongguoTVPreferences");
         webView.addJavascriptInterface(new InputBridge(), "HongguoTVInput");
         webView.addJavascriptInterface(new HomeChannelBridge(), "HongguoTVHome");

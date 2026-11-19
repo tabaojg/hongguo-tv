@@ -95,6 +95,10 @@
           <button class="channel-tab recommend-refresh" id="recommend-refresh" data-focus="recommend-refresh" aria-label="换一批推荐" data-i18n-aria-label="channel.refresh" data-i18n="channel.refresh">换一批</button>
         </div>
         <button type="button" class="top-status" id="core-status" tabindex="-1" aria-disabled="true" aria-haspopup="dialog" aria-controls="core-connection-modal"><svg class="status-icon" aria-hidden="true" focusable="false"><use href="#icon-connection" xlink:href="#icon-connection"></use></svg><span id="core-status-label">连接核心服务…</span></button>
+        <div id="player-hud" class="player-hud is-hidden" aria-hidden="true">
+          <span id="player-clock" class="player-clock"></span>
+          <button type="button" id="player-episode-jump" class="player-episode-jump" data-action="episode-jump" data-focus="player-episode-jump" aria-haspopup="dialog" aria-controls="account-keypad-modal"><span id="player-episode-jump-label">1/0</span></button>
+        </div>
       </div>
 
       <section class="page-placeholder is-hidden" id="page-placeholder" aria-live="polite">
@@ -519,7 +523,7 @@
           </div>
           <div class="hero-gradient"></div>
           <div class="hero-top-copy" id="hero-top-copy"><strong id="hero-top-title" data-i18n="app.name">红果短剧</strong><span id="hero-top-episode" data-i18n="ui.episodePlaceholder">第1集</span></div>
-          <div class="hero-top-right"><span id="player-clock" class="player-clock is-hidden" aria-hidden="true"></span><strong id="hero-top-count">1 / 0</strong><span data-i18n="hero.switchHint">↑↓ 切换</span></div>
+          <div class="hero-top-right"><strong id="hero-top-count">1 / 0</strong><span data-i18n="hero.switchHint">↑↓ 切换</span></div>
           <div class="catalog-ribbon" id="catalog-ribbon" aria-label="分类内容" data-i18n-aria-label="hero.catalogContent">
             <div class="catalog-heading" id="catalog-heading" data-i18n="ui.hotDrama">热播短剧</div>
             <div class="catalog-track" id="catalog-track" data-focus-zone="catalog" aria-label="短剧列表" data-i18n-aria-label="hero.dramaList"></div>
