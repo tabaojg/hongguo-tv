@@ -61,6 +61,7 @@
     accountKeypad: '.account-keypad-key',
     accountActions: '.account-action',
     appUpdates: '.app-update-action',
+    updateQR: '.update-qr-action',
     recommendedApps: '.recommended-app-action',
     webosUpdateNotes: '.webos-update-notes',
     localeActions: '.locale-action',
@@ -222,6 +223,8 @@
   var danmakuScanOpen = false;
   var searchScanReturnFocus = null;
   var danmakuScanReturnFocus = null;
+  var updateQROpen = false;
+  var updateQRReturnFocus = null;
   var searchHistory;
   var searchDiscovery;
   var searchDiscoveryData = { guesses: [], boards: [] };
@@ -1236,6 +1239,7 @@
     Array.prototype.forEach.call(document.querySelectorAll(query), function (element) {
       var insideModal = element.closest && element.closest('#detail-modal');
       if (coreConnectionModalOpen) { if (!element.closest('#core-connection-modal')) return; }
+      else if (typeof updateQROpen !== 'undefined' && updateQROpen) { if (!element.closest('#update-qr-modal')) return; }
       else if (scanModalOpen()) { if (!element.closest('#search-scan-modal')) return; }
       else if (accountCountryModalOpen) { if (!element.closest('#account-country-modal')) return; }
       else if (accountKeypadOpen()) { if (!element.closest('#account-keypad-modal')) return; }
@@ -1309,6 +1313,7 @@
     if (element.id === 'core-connection-scroll' || element.classList.contains('core-connection-action')) return 'coreConnection';
     if (element.id === 'core-status') return 'channels';
     if (element.classList.contains('end-recommendation-card') || element.id === 'end-recommendations-close') return 'endRecommendations';
+    if (element.classList.contains('update-qr-action')) return 'updateQR';
     if (element.classList.contains('search-scan-action')) return 'searchScan';
     if (element.classList.contains('search-history-action')) return 'searchHistory';
     if (element.classList.contains('search-guess')) return 'searchGuesses';
@@ -1698,6 +1703,7 @@
 
   function moveFrom(current, direction) {
     if (coreConnectionModalOpen) return moveCoreConnectionFocus(current, direction);
+    if (typeof updateQROpen !== 'undefined' && updateQROpen) return null; // single close button; no navigation needed
     if (scanModalOpen()) return direction === 'left' || direction === 'right' ? moveWithinZone('searchScan', current, direction) : null;
     if (typeof accountCountryModalOpen !== 'undefined' && accountCountryModalOpen) {
       if (current.id === 'account-country-close') return direction === 'down' ? document.querySelector('.account-country-item.is-selected') || firstVisible('.account-country-item') : null;
@@ -3537,6 +3543,7 @@
   function handleBack() {
     var current = typeof androidShell !== 'undefined' && androidShell ? remoteFocusTarget() || document.activeElement : document.activeElement;
     if (coreConnectionModalOpen) { closeCoreConnectionModal(true); return true; }
+    if (typeof updateQROpen !== 'undefined' && updateQROpen) { closeUpdateQR(true); return true; }
     if (autoCinemaCandidate) cancelPendingAutoCinema();
     if (endRecommendations && endRecommendations.close(true)) return true;
     if (searchSuggestionOpen) { closeSearchSuggestions(true); return true; }
@@ -3639,7 +3646,7 @@
   }
   function canShowAppUpdate() {
     var current = document.activeElement;
-    return !applicationInBackground && !applicationHidden() && pageMode() !== 'apps' && !isPlaybackPage() && !supportModalOpen && !detailModalOpen && !(typeof actorWorksOpen !== 'undefined' && actorWorksOpen) && !discussionOpen && !confirmOpen && !playerOptionsOpen && !accountBusy && !accountKeypadOpen() && !(current && /INPUT|TEXTAREA/.test(current.tagName));
+    return !applicationInBackground && !applicationHidden() && pageMode() !== 'apps' && !isPlaybackPage() && !supportModalOpen && !detailModalOpen && !(typeof updateQROpen !== 'undefined' && updateQROpen) && !(typeof actorWorksOpen !== 'undefined' && actorWorksOpen) && !discussionOpen && !confirmOpen && !playerOptionsOpen && !accountBusy && !accountKeypadOpen() && !(current && /INPUT|TEXTAREA/.test(current.tagName));
   }
   // Old native IME callbacks are irrelevant to the app-owned numeric keypad.
   function openHomeProgram(program) {
@@ -7766,6 +7773,38 @@
     goFocus(document.getElementById('confirm-cancel'));
   }
 
+  function closeUpdateQR(restore) {
+    if (!updateQROpen) return;
+    updateQROpen = false;
+    var modal = document.getElementById('update-qr-modal');
+    modal.classList.add('is-hidden');
+    modal.setAttribute('aria-hidden', 'true');
+    var image = document.getElementById('update-qr-image');
+    image.classList.add('is-hidden');
+    image.removeAttribute('src');
+    var target = updateQRReturnFocus; updateQRReturnFocus = null;
+    if (restore && target && focusables().indexOf(target) >= 0) goFocus(target);
+  }
+
+  function openUpdateQR(releaseUrl, version) {
+    if (updateQROpen || !releaseUrl) return false;
+    var generator = window.HongguoUpdateQR;
+    if (!generator || typeof generator.toSVG !== 'function') return false;
+    var svg = generator.toSVG(releaseUrl, 260);
+    if (!svg) return false;
+    var image = document.getElementById('update-qr-image');
+    image.src = svg;
+    image.classList.remove('is-hidden');
+    document.getElementById('update-qr-version').textContent = version ? uiText('ui.updateQRVersion', '新版本 {version}', { version: version }) : '';
+    updateQRReturnFocus = document.activeElement;
+    updateQROpen = true;
+    var modal = document.getElementById('update-qr-modal');
+    modal.classList.remove('is-hidden');
+    modal.setAttribute('aria-hidden', 'false');
+    goFocus(document.getElementById('update-qr-close'));
+    return true;
+  }
+
   function closeSearchScan(restore) {
     searchScanOpen = false;
     searchScanReusable = false;
@@ -8478,6 +8517,7 @@
       scrollEndRecommendationIntoView(event.target);
     } else setTimeout(flushEndRecommendations, 0);
     if (typeof playbackCommandMenuOpen !== 'undefined' && playbackCommandMenuOpen && !event.target.closest('#playback-command-menu')) { goFocus(firstVisible('.playback-command-action')); return; }
+    if (updateQROpen && !event.target.closest('#update-qr-modal')) { goFocus(document.getElementById('update-qr-close')); return; }
     if (scanModalOpen() && !event.target.closest('#search-scan-modal')) { goFocus(document.getElementById('search-scan-close')); return; }
     if (accountCountryModalOpen && !event.target.closest('#account-country-modal')) { goFocus(document.querySelector('.account-country-item.is-selected') || document.getElementById('account-country-close')); return; }
     if (typeof actorWorksOpen !== 'undefined' && actorWorksOpen && !event.target.closest('#actor-works-modal')) { goFocus(document.getElementById('actor-works-close')); return; }
@@ -9588,9 +9628,26 @@
   if (window.HongguoI18n) window.HongguoI18n.onChange(function () { recommendedApps.refresh(); });
   window.addEventListener('pagehide', function () { recommendedApps.destroy(); });
 
+  // Android shows a release-page QR instead of downloading in place. The flag
+  // makes a manual "check update" open the QR once the async check reports a
+  // new version; automatic background checks must never interrupt the user.
+  var updateQRRequested = false;
+  function androidUpdateQRMode() { return !desktopShell && !webosShell; }
+  function canShowUpdateQR(data) {
+    return androidUpdateQRMode() && data && !data.desktop && !data.manual_install &&
+      data.release_url && (data.state === 'available' || data.state === 'ready');
+  }
+  function maybeShowUpdateQR(data) {
+    if (!updateQRRequested || !canShowUpdateQR(data) || updateQROpen) return;
+    updateQRRequested = false;
+    openUpdateQR(data.release_url, data.latest_version);
+  }
+
   var appUpdates = window.HongguoAppUpdates.create({
     bridge: window.HongguoTVUpdates,
     canPrompt: canShowAppUpdate,
+    qrMode: androidUpdateQRMode,
+    onRelease: function (data) { maybeShowUpdateQR(data); },
     render: function (data) {
       var current = document.getElementById('app-current-version');
       if (data.current_version) current.textContent = data.current_version + (data.edition ? ' · ' + data.edition : '');
@@ -9600,7 +9657,7 @@
       // Keep the active TV focus node alive while native checking/download runs.
       check.disabled = !data.supported;
       check.setAttribute('aria-disabled', data.state === 'checking' || data.state === 'downloading' || data.state === 'installing' ? 'true' : 'false');
-      check.textContent = data.state === 'checking' ? uiText('ui.checking', '检查中…') : data.manual_install ? uiText('ui.checkUpdate', '检查更新') : !data.desktop && data.state === 'ready' ? uiText('ui.installUpdate', '安装更新') : !data.desktop && data.state === 'available' ? uiText('ui.viewUpdate', '查看更新 {version}', { version: data.latest_version }) : uiText('ui.checkUpdate', '检查更新');
+      check.textContent = data.state === 'checking' ? uiText('ui.checking', '检查中…') : data.manual_install ? uiText('ui.checkUpdate', '检查更新') : androidUpdateQRMode() && data.release_url && (data.state === 'ready' || data.state === 'available') ? uiText('ui.scanUpdate', '扫码更新 {version}', { version: data.latest_version }) : !data.desktop && data.state === 'ready' ? uiText('ui.installUpdate', '安装更新') : !data.desktop && data.state === 'available' ? uiText('ui.viewUpdate', '查看更新 {version}', { version: data.latest_version }) : uiText('ui.checkUpdate', '检查更新');
       if (webosShell && data.manual_install) {
         var webosNotes = document.getElementById('desktop-update-notes');
         webosNotes.classList.toggle('is-hidden', !data.latest_version);
@@ -9633,9 +9690,14 @@
           showNotice(uiText('ui.newVersionNotice', '发现新版本 {version}，可在设置中下载更新。', { version: data.latest_version }));
         }
       }
+      maybeShowUpdateQR(data);
     }
   });
-  document.getElementById('app-check-update').addEventListener('click', appUpdates.activate);
+  document.getElementById('app-check-update').addEventListener('click', function () {
+    if (androidUpdateQRMode()) updateQRRequested = true;
+    appUpdates.activate();
+  });
+  document.getElementById('update-qr-close').addEventListener('click', function () { closeUpdateQR(true); });
   document.getElementById('desktop-download-update').addEventListener('click', function () { if (desktopShell) window.HongguoTVUpdates.download(); });
   document.getElementById('desktop-open-update-folder').addEventListener('click', function () { if (desktopShell) window.HongguoTVUpdates.openFolder(); });
   var playbackSettings = window.HongguoPlaybackSettings.create({

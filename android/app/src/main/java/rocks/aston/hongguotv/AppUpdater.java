@@ -819,6 +819,24 @@ final class AppUpdater {
         return error.getMessage() == null ? "网络或文件校验失败" : error.getMessage();
     }
 
+    // Derives the public release tag page from the manifest download URL and
+    // the latest version. The download URL supplies the repository base, the
+    // version supplies the vX.Y.Z tag.
+    // e.g. https://github.com/tabaojg/hongguo-tv + 0.2.174
+    //   -> https://github.com/tabaojg/hongguo-tv/releases/tag/v0.2.174
+    static String releasePage(String downloadUrl, String version) {
+        if (downloadUrl == null || version == null) return "";
+        String base = downloadUrl.trim();
+        int marker = base.indexOf("/releases/download/");
+        if (marker >= 0) base = base.substring(0, marker);
+        while (base.endsWith("/")) base = base.substring(0, base.length() - 1);
+        if (!base.startsWith("http://") && !base.startsWith("https://")) return "";
+        String tag = version.trim();
+        if (tag.startsWith("v")) tag = tag.substring(1);
+        if (!tag.matches("[0-9]+(\\.[0-9]+)+")) return "";
+        return base + "/releases/tag/v" + tag;
+    }
+
     private void publish() {
         try {
             JSONObject value = new JSONObject();
@@ -828,7 +846,11 @@ final class AppUpdater {
             value.put("downloaded", downloaded);
             value.put("latest_version", latest == null ? "" : latest.name);
             value.put("latest_code", latest == null ? 0 : latest.code);
-            value.put("size", latest == null ? 0 : latest.bytes); snapshot = value.toString();
+            value.put("size", latest == null ? 0 : latest.bytes);
+            // Expose the public release tag page so the TV can show a scannable QR
+            // instead of downloading in-place. Derived from the signed manifest's
+            // download_url (repository base) + latest version (vX.Y.Z tag).
+            value.put("release_url", releasePage(latest == null ? "" : latest.url, latest == null ? "" : latest.name)); snapshot = value.toString();
         } catch (Exception ignored) { /* Keep the last complete status. */ }
     }
 
