@@ -5299,6 +5299,24 @@
       });
     }
   }
+  // Warm the next episode's cover as soon as the current source is attached,
+  // instead of waiting for the timed media prefetch (5s stable playback) and
+  // its peek. This decoded preview is what covers the black transition surface
+  // when the viewer switches episode early; without it the switch flashes pure
+  // black. engagement.prewarm caches/dedupes, so a later prefetch-driven warm
+  // is harmless. It never flashes wrong artwork: prewarmEpisodeCover only
+  // accepts a VID that is exactly the next entry of the current series.
+  function warmNextEpisodeCover(playback) {
+    if (!playback || typeof engagement === 'undefined' || !engagement || !playback.item || !playback.item.vid_list) return;
+    var nextVid = playback.item.vid_list[playback.episode];
+    if (nextVid === undefined || nextVid === null || String(nextVid).trim() === '' || String(nextVid) === '0') return;
+    var target = { series_id: playback.item.series_id, vid: String(nextVid), episode: playback.episode + 1 };
+    engagement.prewarm(target).then(function (data) {
+      if (!data || activePlayback !== playback || playback.generation !== feedGeneration ||
+          playback.owner !== accountEpoch || applicationInBackground || applicationHidden()) return;
+      prewarmEpisodeCover(target, data, playback);
+    });
+  }
   function cancelFullEpisodePrefetchForPlayback(playback) {
     var video = document.getElementById('hero-video');
     if (!playback || !playback.started || playback.ended || playback.completed || video.ended ||
@@ -5365,6 +5383,12 @@
       if (activePlayback.generation !== feedGeneration ||
           activePlayback.owner !== owner || activePlayback.item.series_id !== target.series_id) return false;
       if (activePlayback.vid === target.vid) return true;
+      // A cover for the immediately following episode can be warmed as soon as
+      // the current detail (with vid_list) is attached, without waiting for the
+      // timed media prefetch. Accept it only when the VID is exactly the next
+      // entry in the current series, so stale/wrong artwork is never decoded.
+      var nextVid = activePlayback.item && activePlayback.item.vid_list && activePlayback.item.vid_list[activePlayback.episode];
+      if (nextVid && String(nextVid) === target.vid) return true;
       var prepared = typeof episodePrefetch.peek === 'function' ? episodePrefetch.peek() : null;
       return !!(prepared && prepared.info && prepared.target && prepared.info.generation === activePlayback.generation &&
         prepared.info.owner === owner && prepared.target.series_id === target.series_id && prepared.target.vid === target.vid);
@@ -5842,6 +5866,12 @@
         playbackRequest.owner === accountEpoch && playbackRequest.generation === feedGeneration &&
         document.getElementById('hero').classList.contains('is-preparing-video')));
     var transitionKind = sameDrama ? 'episode' : activePlayback ? 'series' : 'initial';
+    // Same-series switch on a native engine: keep the live ExoPlayer instead of
+    // releasing it. Releasing tears down MediaCodec and the audio track, and
+    // rebuilding them is what made the first moment of the next episode look
+    // like the remote's pause key had been pressed.
+    var switchAdapter = typeof window !== 'undefined' ? window.HongguoNativePlaybackAdapter : null;
+    if (sameSeries && nativeAtSwitch && switchAdapter && typeof switchAdapter.retainPlayerForSwap === 'function') switchAdapter.retainPlayerForSwap();
     var fastContinuation = !!(continuation && continuation.completed && canContinuePlayback(continuation) &&
       continuation.owner === accountEpoch && continuation.item.series_id === item.series_id &&
       forcedEpisode === continuation.episode + 1 && forcedPosition === 0 && libraryLoaded);
@@ -6051,6 +6081,10 @@
           setPlayerStatus(episodeLoadingText(activePlayback.episode));
           if (!applicationHidden() && !applicationInBackground) playMedia(video).catch(function () { setPlayerStatus(''); revealControls(); showNotice(uiText('content.videoReadyConfirm', '视频已准备好，请按确认键开始播放')); });
           else { setPlayerStatus(''); revealControls(); }
+          // Warm the next episode's cover now that detail (with vid_list) is
+          // available, so an early episode switch still has artwork to cover
+          // the black transition instead of flashing pure black.
+          if (typeof warmNextEpisodeCover === 'function') warmNextEpisodeCover(activePlayback);
         }
         if (!keepRangeFrame) { attachPreparedSource(); return; }
         // Cover the source replacement before it reaches Android's video
@@ -6069,6 +6103,9 @@
         playbackInfoRequest = null; playbackPrefetchHandoff = null;
         if (recoverPlaybackPreparation(activePlayback, error, generation)) return;
         if (error.name !== 'AbortError') {
+          // Preparation truly failed: drop the retained player so the reset
+          // below releases it instead of leaving a paused surface behind.
+          if (switchAdapter && typeof switchAdapter.releaseSwapRetention === 'function') switchAdapter.releaseSwapRetention();
           clearRangeTransitionHint();
           hero.classList.remove('is-range-transition');
           video.classList.remove('has-source');
@@ -7819,6 +7856,12 @@
     episodePrefetch.cancel(); cancelPlaybackPreparation();
     saveProgress(true); activePlayback = null; ++feedGeneration;
     if (typeof syncNativePlaybackPageState === 'function') syncNativePlaybackPageState();
+    // Leaving playback: a retained switch player must be released here, not
+    // left paused behind the catalog with its surface still on screen.
+    if (typeof window !== 'undefined' && window.HongguoNativePlaybackAdapter &&
+        typeof window.HongguoNativePlaybackAdapter.releaseSwapRetention === 'function') {
+      window.HongguoNativePlaybackAdapter.releaseSwapRetention();
+    }
     document.getElementById('hero-video').pause();
     releasePlaybackAudio();
     document.getElementById('hero-video').removeAttribute('src');
