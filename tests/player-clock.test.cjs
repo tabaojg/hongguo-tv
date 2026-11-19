@@ -2,7 +2,7 @@ const {test} = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const HongguoPlayerClock = require('../core/cmd/hongguotv/ui/player-clock.js');
-const {formatTime, formatLabel, systemNow, createSyncedNow, mount} = HongguoPlayerClock;
+const {formatTime, formatLabel, localNow, mount} = HongguoPlayerClock;
 
 function date(hour, minute, second) {
   return new Date(2026, 0, 1, hour, minute, second, 0);
@@ -44,10 +44,10 @@ function timerScope() {
   };
 }
 
-test('formatTime zero-pads each component into a stable HH:MM:SS width', () => {
-  assert.equal(formatTime(date(9, 5, 3)), '09:05:03');
-  assert.equal(formatTime(date(23, 59, 59)), '23:59:59');
-  assert.equal(formatTime(date(0, 0, 0)), '00:00:00');
+test('formatTime zero-pads hours and minutes into a stable HH:MM width', () => {
+  assert.equal(formatTime(date(9, 5, 3)), '09:05');
+  assert.equal(formatTime(date(23, 59, 59)), '23:59');
+  assert.equal(formatTime(date(0, 0, 0)), '00:00');
 });
 
 test('formatLabel spells the time out and honours a custom template', () => {
@@ -61,20 +61,20 @@ test('mount with no element returns a safe no-op handle', () => {
   assert.doesNotThrow(() => { handle.update(); handle.stop(); });
 });
 
-test('start paints immediately then keeps ticking; stop clears the timer', () => {
+test('start paints immediately then keeps ticking at the slow cadence; stop clears the timer', () => {
   const host = element();
   const scope = timerScope();
   let now = date(9, 5, 3);
-  const handle = mount(host, {scope, now: () => now, tickMs: 1000});
+  const handle = mount(host, {scope, now: () => now, tickMs: 30000});
 
   handle.start();
-  assert.equal(host.textContent, '09:05:03');
+  assert.equal(host.textContent, '09:05');
   assert.equal(scope.pending(), 1);
-  assert.equal(scope.lastDelay(), 1000);
+  assert.equal(scope.lastDelay(), 30000);
 
-  now = date(9, 5, 4);
+  now = date(9, 6, 0);
   scope.fire();
-  assert.equal(host.textContent, '09:05:04');
+  assert.equal(host.textContent, '09:06');
   assert.equal(scope.pending(), 1);
 
   handle.stop();
@@ -84,7 +84,7 @@ test('start paints immediately then keeps ticking; stop clears the timer', () =>
 test('start is idempotent and a stopped clock can be restarted', () => {
   const host = element();
   const scope = timerScope();
-  const handle = mount(host, {scope, now: () => date(1, 2, 3), tickMs: 1000});
+  const handle = mount(host, {scope, now: () => date(1, 2, 3), tickMs: 30000});
   handle.start(); handle.start();
   assert.equal(scope.pending(), 1);
   handle.stop();
@@ -110,18 +110,18 @@ test('a hidden host keeps its text but does not repaint on ticks', () => {
   const host = element();
   const scope = timerScope();
   let now = date(9, 5, 3);
-  const handle = mount(host, {scope, now: () => now, tickMs: 1000});
+  const handle = mount(host, {scope, now: () => now, tickMs: 30000});
   handle.start();
-  assert.equal(host.textContent, '09:05:03');
+  assert.equal(host.textContent, '09:05');
 
   host.classList.add('is-hidden');
-  now = date(9, 5, 4);
+  now = date(9, 6, 0);
   scope.fire();
-  assert.equal(host.textContent, '09:05:03');
+  assert.equal(host.textContent, '09:05');
 
   host.classList.remove('is-hidden');
   scope.fire();
-  assert.equal(host.textContent, '09:05:04');
+  assert.equal(host.textContent, '09:06');
   handle.stop();
 });
 
@@ -130,12 +130,12 @@ test('aria-hidden is treated the same as the is-hidden class', () => {
   host.classList.remove('is-hidden');
   const scope = timerScope();
   let now = date(9, 5, 3);
-  const handle = mount(host, {scope, now: () => now, tickMs: 1000});
+  const handle = mount(host, {scope, now: () => now, tickMs: 30000});
   handle.start();
   host.setAttribute('aria-hidden', 'true');
-  now = date(9, 5, 4);
+  now = date(9, 6, 0);
   scope.fire();
-  assert.equal(host.textContent, '09:05:03');
+  assert.equal(host.textContent, '09:05');
   handle.stop();
 });
 
@@ -143,7 +143,7 @@ test('update is a no-op when nothing changed and safe after stop', () => {
   const host = element();
   const scope = timerScope();
   let writes = 0;
-  const handle = mount(host, {scope, now: () => date(9, 5, 3), tickMs: 1000});
+  const handle = mount(host, {scope, now: () => date(9, 5, 3), tickMs: 30000});
   Object.defineProperty(host, 'textContent', {
     configurable: true,
     get() { return this._text || ''; },
@@ -158,103 +158,24 @@ test('update is a no-op when nothing changed and safe after stop', () => {
   assert.equal(writes, 1);
 });
 
-function fakeScope(bridge) {
-  return bridge ? {HongguoTVClock: bridge} : {};
-}
-
-test('systemNow reads epoch millis from the Android system-clock bridge', () => {
-  const epoch = date(14, 30, 12).getTime();
-  const scope = fakeScope({currentTimeMillis: () => epoch});
-  const now = systemNow(scope);
-  assert.ok(now instanceof Date);
-  assert.equal(now.getTime(), epoch);
-  assert.equal(formatTime(now), '14:30:12');
-});
-
-test('systemNow falls back to the web clock when the bridge is absent', () => {
+test('localNow returns the WebView system clock without any bridge', () => {
   const before = Date.now();
-  const now = systemNow(fakeScope(null));
+  const now = localNow();
   const after = Date.now();
   assert.ok(now instanceof Date);
   assert.ok(now.getTime() >= before && now.getTime() <= after);
 });
 
-test('systemNow falls back when the bridge has no currentTimeMillis method', () => {
-  const before = Date.now();
-  const now = systemNow(fakeScope({}));
-  assert.ok(now.getTime() >= before && now.getTime() <= Date.now());
-});
-
-test('systemNow falls back when the bridge throws or returns an invalid value', () => {
-  const throwing = systemNow(fakeScope({currentTimeMillis: () => { throw new Error('torn down'); }}));
-  assert.ok(throwing.getTime() >= Date.now() - 1000);
-  for (const bad of [0, -1, NaN, Infinity, '123', null]) {
-    const now = systemNow(fakeScope({currentTimeMillis: () => bad}));
-    assert.ok(now instanceof Date, `expected a Date for ${String(bad)}`);
-    assert.ok(now.getTime() > 0);
-  }
-});
-
-test('Android bridge exposing currentTimeMillis is registered on the WebView', () => {
+test('no HongguoTVClock JavaScriptInterface bridge is registered', () => {
   const activity = fs.readFileSync(require.resolve('../android/app/src/main/java/rocks/aston/hongguotv/MainActivity.java'), 'utf8');
-  assert.match(activity, /addJavascriptInterface\(new Object\(\) \{[\s\S]*?@JavascriptInterface public long currentTimeMillis\(\) \{\s*return System\.currentTimeMillis\(\);\s*\}\s*\}, "HongguoTVClock"\)/);
+  assert.doesNotMatch(activity, /HongguoTVClock/);
+  assert.doesNotMatch(activity, /@JavascriptInterface public long currentTimeMillis/);
 });
 
-test('app.js mounts the clock with the low-frequency synced source and one-second ticks', () => {
+test('app.js mounts the clock with the local clock source and 30-second ticks', () => {
   const source = fs.readFileSync(require.resolve('../core/cmd/hongguotv/ui/app.js'), 'utf8');
-  assert.match(source, /HongguoPlayerClock\.createSyncedNow\(\{ syncMs: 60000 \}\)/);
-  assert.match(source, /now: playerClockNow \|\| HongguoPlayerClock\.systemNow,/);
-  assert.match(source, /HongguoPlayerClock\.mount\(playerClockNode, \{[\s\S]*?tickMs: 1000,/);
-});
-
-test('createSyncedNow reads the source once then advances on the local monotonic clock', () => {
-  let reads = 0;
-  const bridgeEpoch = Date.UTC(2026, 0, 1, 10, 0, 0);
-  let mono = 0;
-  const source = () => { reads++; return new Date(bridgeEpoch); };
-  const now = createSyncedNow({syncMs: 60000, source, monotonic: () => mono});
-
-  assert.equal(now().getTime(), bridgeEpoch); // first call syncs from the source
-  assert.equal(reads, 1);
-  mono += 1000;
-  assert.equal(now().getTime(), bridgeEpoch + 1000); // local tick, no bridge read
-  mono += 1000;
-  assert.equal(now().getTime(), bridgeEpoch + 2000);
-  assert.equal(reads, 1);
-});
-
-test('createSyncedNow re-reads the source after the sync interval elapses', () => {
-  let reads = 0;
-  let bridgeEpoch = Date.UTC(2026, 0, 1, 10, 0, 0);
-  let mono = 0;
-  const source = () => { reads++; return new Date(bridgeEpoch); };
-  const now = createSyncedNow({syncMs: 60000, source, monotonic: () => mono});
-
-  now();
-  assert.equal(reads, 1);
-  mono += 59000; // just under the interval
-  now();
-  assert.equal(reads, 1);
-  mono += 2000; // crosses 60000
-  assert.equal(now().getTime(), bridgeEpoch); // re-sync returns the fresh source value
-  assert.equal(reads, 2);
-});
-
-test('createSyncedNow re-syncs on demand for a fresh playback session', () => {
-  let reads = 0;
-  let bridgeEpoch = Date.UTC(2026, 0, 1, 10, 0, 0);
-  let mono = 0;
-  const source = () => { reads++; return new Date(bridgeEpoch); };
-  const now = createSyncedNow({syncMs: 60000, source, monotonic: () => mono});
-
-  now();
-  bridgeEpoch += 5000; // system clock jumped while playback was stopped
-  now(); // within interval, still uses local advance
-  assert.equal(reads, 1);
-  assert.equal(now().getTime(), bridgeEpoch - 5000);
-  now.resync(); // next playback session forces a fresh system-time read
-  assert.equal(now().getTime(), bridgeEpoch);
-  assert.equal(reads, 2);
+  assert.match(source, /HongguoPlayerClock\.mount\(playerClockNode, \{[\s\S]*?now: HongguoPlayerClock\.localNow,[\s\S]*?tickMs: 30000,/);
+  assert.doesNotMatch(source, /createSyncedNow/);
 });
 
 test('clock node lives in the top bar beside core-status, not in hero-top-right', () => {
@@ -283,7 +204,6 @@ test('showPlayerClock/hidePlayerClock toggle the clock node and the is-clock-sho
   const hide = source.slice(source.indexOf('function hidePlayerClock()'), source.indexOf('var endRecommendations'));
   assert.match(show, /playerClockNode\.classList\.remove\('is-hidden'\)/);
   assert.match(show, /shell\.classList\.add\('is-clock-shown'\)/);
-  assert.match(show, /playerClockNow\.resync\(\)/);
   assert.match(hide, /playerClockNode\.classList\.add\('is-hidden'\)/);
   assert.match(hide, /shell\.classList\.remove\('is-clock-shown'\)/);
 });

@@ -496,16 +496,13 @@
   var endRecommendationIndex = 0, endRecommendationAnimation = 0, endRecommendationReadyCleanup = null;
   var nextSeasonHint = typeof HongguoNextSeasonHint !== 'undefined' ? HongguoNextSeasonHint.create({ show: showNextSeasonHint, hide: hideNextSeasonHint }) : null;
   var playerClockNode = document.getElementById('player-clock');
-  // The Android system-clock bridge shares the WebView main thread with video
-  // rendering. Use a synced source that reads it once and advances locally, so
-  // a per-second tick never stalls playback on weaker TV/projector hardware.
-  var playerClockNow = typeof HongguoPlayerClock !== 'undefined' && HongguoPlayerClock.createSyncedNow
-    ? HongguoPlayerClock.createSyncedNow({ syncMs: 60000 })
-    : null;
+  // The WebView's own Date reads the device system clock directly, with no
+  // JavaScriptInterface bridge crossing into the video-rendering main thread.
+  // Only hours/minutes are shown, so a 30s refresh keeps the display current.
   var playerClock = typeof HongguoPlayerClock !== 'undefined' && playerClockNode
     ? HongguoPlayerClock.mount(playerClockNode, {
-        now: playerClockNow || HongguoPlayerClock.systemNow,
-        tickMs: 1000,
+        now: HongguoPlayerClock.localNow,
+        tickMs: 30000,
         label: function (now) { return HongguoPlayerClock.formatLabel(now); }
       })
     : null;
@@ -514,9 +511,6 @@
     playerClockNode.classList.remove('is-hidden');
     playerClockNode.removeAttribute('aria-hidden');
     shell.classList.add('is-clock-shown');
-    // One system-time read at the start of each playback session; the rest of
-    // the ticks advance on the local monotonic clock until the 60s re-sync.
-    if (playerClockNow && typeof playerClockNow.resync === 'function') playerClockNow.resync();
     playerClock.update();
     playerClock.start();
   }

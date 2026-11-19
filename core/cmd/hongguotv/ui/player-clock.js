@@ -6,22 +6,22 @@
 }(typeof window !== 'undefined' ? window : this, function () {
   'use strict';
 
-  var DEFAULT_TICK_MS = 5000;
+  var DEFAULT_TICK_MS = 30000;
 
   // Two-digit zero padding keeps the clock width stable on the TV layout.
   function pad(value) {
     return value < 10 ? '0' + value : String(value);
   }
 
-  // Returns [HH, MM, SS] from a Date. Kept separate from formatTime so the
-  // hourly refresh boundary can be computed without re-parsing the string.
+  // Returns [HH, MM] from a Date. The clock shows hours and minutes only, so
+  // it needs no seconds and can refresh at a slow cadence.
   function parts(now) {
-    return [now.getHours(), now.getMinutes(), now.getSeconds()];
+    return [now.getHours(), now.getMinutes()];
   }
 
   function formatTime(now) {
     var values = parts(now);
-    return pad(values[0]) + ':' + pad(values[1]) + ':' + pad(values[2]);
+    return pad(values[0]) + ':' + pad(values[1]);
   }
 
   // Screen-reader text spells the time out; the visual form is colon
@@ -38,55 +38,12 @@
     return host.classList.contains('is-hidden') || host.getAttribute('aria-hidden') === 'true';
   }
 
-  // Wall-clock source: prefer the Android system clock exposed through the
-  // HongguoTVClock JavaScriptInterface (epoch millis in the device timezone),
-  // and fall back to the web clock everywhere else (desktop/webOS/tests).
-  // `host` is injectable so this stays testable without a real window.
-  function systemNow(host) {
-    var scope = host || (typeof window !== 'undefined' ? window : null);
-    var bridge = scope && scope.HongguoTVClock;
-    if (bridge && typeof bridge.currentTimeMillis === 'function') {
-      try {
-        var millis = bridge.currentTimeMillis();
-        if (typeof millis === 'number' && isFinite(millis) && millis > 0) {
-          return new Date(millis);
-        }
-      } catch (e) {
-        // Bridge may be torn down during navigation; fall through to web time.
-      }
-    }
+  // The WebView's own Date already reads the device system clock (both come
+  // from CLOCK_REALTIME), so no JavaScriptInterface bridge is needed. Reading
+  // it never crosses into the Java main thread that renders video, which is
+  // what used to stall playback on weaker TV/projector hardware.
+  function localNow() {
     return new Date();
-  }
-
-  // The Android system-clock bridge runs on the WebView main thread, the same
-  // thread that renders video. Polling it every second contends with playback
-  // on weaker TV/projector hardware and can stall the picture. Read the
-  // authoritative system time once, advance with a monotonic local clock in
-  // between, and re-sync only occasionally (or on the next resumed playback).
-  function createSyncedNow(options) {
-    options = options || {};
-    var syncMs = options.syncMs > 0 ? options.syncMs : 60000;
-    var scope = options.scope || (typeof window !== 'undefined' ? window : null);
-    var source = typeof options.source === 'function' ? options.source : systemNow;
-    var monotonic = typeof options.monotonic === 'function' ? options.monotonic : function () {
-      return typeof performance !== 'undefined' && performance && typeof performance.now === 'function'
-        ? performance.now() : Date.now();
-    };
-    var anchorWall = 0;
-    var anchorMono = 0;
-    var synced = function () {
-      var mono = monotonic();
-      if (!anchorWall || mono - anchorMono >= syncMs) {
-        anchorWall = source(scope).getTime();
-        anchorMono = mono;
-        return new Date(anchorWall);
-      }
-      return new Date(anchorWall + (mono - anchorMono));
-    };
-    // Force the next read to consult the authoritative source again, e.g. when
-    // a new playback session starts. Still just one bridge call per session.
-    synced.resync = function () { anchorWall = 0; anchorMono = 0; };
-    return synced;
   }
 
   function mount(element, options) {
@@ -96,7 +53,7 @@
     // In the CommonJS test path `root` is not in scope, so the timer scope is
     // resolved lazily and the host element itself is never dereferenced here.
     var scope = options.scope || (typeof root !== 'undefined' ? root : {});
-    var now = options.now || function () { return new Date(); };
+    var now = options.now || localNow;
     var tickMs = options.tickMs > 0 ? options.tickMs : DEFAULT_TICK_MS;
     var label = options.label;
     var timer = 0;
@@ -147,8 +104,7 @@
   return {
     formatTime: formatTime,
     formatLabel: formatLabel,
-    systemNow: systemNow,
-    createSyncedNow: createSyncedNow,
+    localNow: localNow,
     mount: mount
   };
 }));
