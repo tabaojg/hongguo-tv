@@ -123,7 +123,19 @@ jobs:
           python3 scripts/prepare_mpv.py
           python3 scripts/package_mpv_sources.py --out "$RUNNER_TEMP/hongguo-tv-mpv-library-source-$APP_VERSION.zip"
       - name: Verify standard and MPV dependency isolation
-        run: gradle --no-daemon --max-workers=1 -p android :app:verifyPlayerDependencyIsolation
+        run: |
+          # A transient Maven Central hiccup can make Gradle cache a failed
+          # "artifact not found" resolution. From attempt 2 on, force a clean
+          # re-fetch with --refresh-dependencies to discard the poisoned cache.
+          for attempt in 1 2 3; do
+            refresh=""; if [ "$attempt" -gt 1 ]; then refresh="--refresh-dependencies"; fi
+            if gradle --no-daemon --max-workers=1 $refresh -p android :app:verifyPlayerDependencyIsolation; then
+              exit 0
+            fi
+            echo "Dependency isolation check failed on attempt $attempt" >&2
+            sleep $((attempt * 5))
+          done
+          exit 1
       - name: Restore signing key
         run: |
           test -n "$ANDROID_KEYSTORE_BASE64" || { echo "Missing release signing key" >&2; exit 1; }
@@ -139,8 +151,18 @@ jobs:
           # Package the two flavors in separate Gradle invocations. AGP's
           # native-library splitter can race when standard and MPV packaging
           # workers are scheduled in the same invocation on a hosted runner.
-          gradle --no-daemon --max-workers=1 --stacktrace -p android testStandardReleaseUnitTest assembleStandardRelease lintStandardRelease
-          gradle --no-daemon --max-workers=1 --stacktrace -p android testMpvReleaseUnitTest assembleMpvRelease lintMpvRelease
+          # Retry with --refresh-dependencies if Maven Central transiently
+          # returns 404/504 that Gradle caches as "artifact not found".
+          for attempt in 1 2 3; do
+            refresh=""; if [ "$attempt" -gt 1 ]; then refresh="--refresh-dependencies"; fi
+            if gradle --no-daemon --max-workers=1 --stacktrace $refresh -p android testStandardReleaseUnitTest assembleStandardRelease lintStandardRelease \
+               && gradle --no-daemon --max-workers=1 --stacktrace $refresh -p android testMpvReleaseUnitTest assembleMpvRelease lintMpvRelease; then
+              exit 0
+            fi
+            echo "Release build failed on attempt $attempt" >&2
+            sleep $((attempt * 5))
+          done
+          exit 1
       - name: Verify APK signature and version
         run: |
           python3 scripts/verify_apks.py --standard android/app/build/outputs/apk/standard/release/app-standard-release.apk --mpv android/app/build/outputs/apk/mpv/release/app-mpv-release.apk --version "$APP_VERSION" --standard-code "$APP_VERSION_CODE" --mpv-code "$MPV_VERSION_CODE" | tee "$RUNNER_TEMP/apk-verification.json"
