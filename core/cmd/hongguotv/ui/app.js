@@ -1015,7 +1015,8 @@
     // existing 38px lane spacing without measuring every emitted comment.
     var occupied = Math.ceil(font * 1.6);
     var step = Math.ceil(38 * font / 22);
-    var maximum = playbackPreferences.danmaku_region === 'half' ? 6 : 4;
+    // Quarter region keeps only the top two rows; half stays at six, default at four.
+    var maximum = playbackPreferences.danmaku_region === 'quarter' ? 2 : playbackPreferences.danmaku_region === 'half' ? 6 : 4;
     var lanes = Math.max(0, Math.min(maximum, Math.floor((height - occupied) / step) + 1));
     return { count: lanes, step: step, font: font };
   }
