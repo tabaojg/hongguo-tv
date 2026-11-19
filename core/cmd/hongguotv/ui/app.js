@@ -496,12 +496,6 @@
   var endRecommendationIndex = 0, endRecommendationAnimation = 0, endRecommendationReadyCleanup = null;
   var nextSeasonHint = typeof HongguoNextSeasonHint !== 'undefined' ? HongguoNextSeasonHint.create({ show: showNextSeasonHint, hide: hideNextSeasonHint }) : null;
   var playerClockNode = document.getElementById('player-clock');
-  var playerHudNode = document.getElementById('player-hud');
-  var playerEpisodeJumpNode = document.getElementById('player-episode-jump');
-  var playerEpisodeJumpLabel = document.getElementById('player-episode-jump-label');
-  var episodeJumpMode = false;
-  var episodeJumpTotal = 0;
-  var episodeJumpReturnFocus = null;
   var playerClock = typeof HongguoPlayerClock !== 'undefined' && playerClockNode
     ? HongguoPlayerClock.mount(playerClockNode, {
         now: HongguoPlayerClock.systemNow,
@@ -509,83 +503,20 @@
         label: function (now) { return HongguoPlayerClock.formatLabel(now); }
       })
     : null;
-  // The badge mirrors "current / total" from the active playback without ever
-  // inventing a number: an unknown total is shown as "--" and an unknown
-  // episode falls back to 1, matching the rest of the player copy.
-  function updatePlayerEpisodeBadge(playback) {
-    if (!playerEpisodeJumpNode || !playerEpisodeJumpLabel) return;
-    var request = playbackRequest;
-    var item = playback && playback.item || feedItems[feedIndex] || featuredItem;
-    var current = playback && Number(playback.episode) ||
-      request && request.index === feedIndex && Number(request.episode) ||
-      item && Number(item.start_episode) || 0;
-    var total = Number(item && item.episode_count) || 0;
-    var shown = current > 0 ? current : 1;
-    playerEpisodeJumpLabel.textContent = shown + '/' + (total > 0 ? total : '--');
-    playerEpisodeJumpNode.setAttribute('aria-label', uiText('ui.jumpEpisodeAria', '第{episode}集，共{count}集 · 按数字键跳转', { episode: shown, count: total }));
-  }
   function showPlayerClock() {
-    if (!playerClock || !playerHudNode) return;
-    playerHudNode.classList.remove('is-hidden');
-    playerHudNode.removeAttribute('aria-hidden');
+    if (!playerClock || !playerClockNode) return;
+    playerClockNode.classList.remove('is-hidden');
+    playerClockNode.removeAttribute('aria-hidden');
     shell.classList.add('is-clock-shown');
-    updatePlayerEpisodeBadge(activePlayback);
     playerClock.update();
     playerClock.start();
   }
   function hidePlayerClock() {
-    if (!playerClock || !playerHudNode) return;
+    if (!playerClock || !playerClockNode) return;
     playerClock.stop();
-    playerHudNode.classList.add('is-hidden');
-    playerHudNode.setAttribute('aria-hidden', 'true');
+    playerClockNode.classList.add('is-hidden');
+    playerClockNode.setAttribute('aria-hidden', 'true');
     shell.classList.remove('is-clock-shown');
-  }
-  // Open the shared numeric keypad in episode mode. The keypad already owns
-  // remote-key handling and focus isolation through accountKeypadOpen(), so
-  // no separate focus surface is needed here.
-  function openEpisodeJump(initial) {
-    if (!numericKeypad || accountKeypadOpen() || !isPlaybackPage() || !activePlayback) return false;
-    var item = activePlayback.item || feedItems[feedIndex] || featuredItem;
-    if (!item) return false;
-    var total = Number(item.episode_count) || 0;
-    var modal = document.getElementById('account-keypad-modal');
-    episodeJumpMode = true;
-    episodeJumpTotal = total;
-    episodeJumpReturnFocus = document.activeElement;
-    if (modal) modal.classList.add('is-episode-jump');
-    var width = total > 0 ? String(total).length : 4;
-    var opened = numericKeypad.open('episode', typeof initial === 'string' ? initial : '', { maxLength: Math.max(1, width) });
-    if (!opened) {
-      episodeJumpMode = false; episodeJumpTotal = 0; episodeJumpReturnFocus = null;
-      if (modal) modal.classList.remove('is-episode-jump');
-    }
-    return opened;
-  }
-  function jumpToEpisode(target, returnFocus) {
-    var restore = function () {
-      var node = returnFocus && returnFocus.getClientRects && returnFocus.getClientRects().length ? returnFocus : document.getElementById('hero-feed-focus');
-      goFocus(node);
-    };
-    var playback = activePlayback;
-    var request = playbackRequest;
-    var item = playback && playback.item || feedItems[feedIndex] || featuredItem;
-    var total = Number(item && item.episode_count) || 0;
-    if (!playback || !isFinite(target) || target < 1 || Math.floor(target) !== target) {
-      showNotice(uiText('content.episodeJumpInvalid', '请输入有效的集数'));
-      restore(); return;
-    }
-    if (total > 0 && target > total) {
-      showNotice(uiText('content.episodeJumpOutOfRange', '本剧只有 {count} 集', { count: total }));
-      restore(); return;
-    }
-    var current = Number(playback.episode) || request && request.index === feedIndex && Number(request.episode) || 0;
-    if (current === target) {
-      showNotice(uiText('content.episodeJumpSame', '正在播放第 {episode} 集', { episode: target }));
-      restore(); return;
-    }
-    var index = feedIndex >= 0 ? feedIndex : 0;
-    playFeedItem(index, target, 0);
-    goFocus(document.getElementById('hero-feed-focus'));
   }
   var endRecommendations = HongguoEndRecommendations.create({
     isCurrent: function (playback) {
@@ -2380,16 +2311,6 @@
     if (accountKeypadOpen()) {
       numericKeypad.handleKey(key, !!event.repeat);
       event.preventDefault(); event.stopPropagation(); return;
-    }
-    // On the playback pages a remote digit key is a direct "jump to episode"
-    // shortcut (like changing channels). Once the keypad opens, the branch
-    // above consumes further digits, so the first digit becomes the prefix.
-    if (/^[0-9]$/.test(key) && !event.repeat && isPlaybackPage() && !detailModalOpen && !playerOptionsOpen &&
-      !confirmOpen && !discussionOpen && !(typeof actorWorksOpen !== 'undefined' && actorWorksOpen) &&
-      !searchSuggestionOpen && !scanModalOpen() && !(typeof playbackCommandMenuOpen !== 'undefined' && playbackCommandMenuOpen)) {
-      var digitFocus = event.remoteNavigation ? remoteFocusTarget() || document.activeElement : document.activeElement;
-      var editingTarget = digitFocus && (digitFocus.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(String(digitFocus.tagName || '')));
-      if (!editingTarget && openEpisodeJump(key)) { event.preventDefault(); event.stopPropagation(); return; }
     }
     if (typeof playbackCommandMenuOpen !== 'undefined' && playbackCommandMenuOpen && typeof handlePlaybackCommandMenuKey === 'function' && handlePlaybackCommandMenuKey(key, !!event.repeat)) {
       event.preventDefault(); event.stopPropagation(); return;
@@ -8609,9 +8530,6 @@
         if (featuredItem) openDetail(featuredItem);
     else showNotice(uiText('ui.noPlayableDrama', '当前还没有可打开的短剧。'));
       }
-      else if (item.dataset.action === 'episode-jump') {
-        if (!openEpisodeJump()) showNotice(uiText('ui.episodeJumpUnavailable', '开始播放后即可跳转集数'));
-      }
       else if (item.dataset.action === 'danmaku-scan') openDanmakuScan();
       else if (['speed', 'volume', 'quality', 'send-danmaku'].indexOf(item.dataset.action) >= 0) openPlayerOptions(item.dataset.action, item);
       else if (item.dataset.action === 'diagnostics') openPlayerOptions('diagnostics', item);
@@ -9364,43 +9282,18 @@
     render: function (state) {
       var modal = document.getElementById('account-keypad-modal');
       modal.classList.toggle('is-hidden', !state.open); modal.setAttribute('aria-hidden', state.open ? 'false' : 'true');
-      var title = document.getElementById('account-keypad-title');
-      var hint = document.getElementById('account-keypad-hint');
+      document.getElementById('account-keypad-title').textContent = state.kind === 'code' ? uiText('ui.keypadCode', '输入验证码') : uiText('ui.keypadPhone', '输入手机号');
       var value = document.getElementById('account-keypad-value');
-      if (state.kind === 'episode') {
-        title.textContent = uiText('ui.jumpEpisodeTitle', '跳转到第几集');
-        value.textContent = state.value || uiText('ui.keypadNumber', '请输入数字'); value.classList.toggle('is-empty', !state.value);
-        hint.textContent = state.open
-          ? (episodeJumpTotal > 0
-            ? uiText('ui.jumpEpisodeHint', '共 {total} 集 · 输入 1 ~ {max} 后按完成', { total: episodeJumpTotal, max: episodeJumpTotal })
-            : uiText('ui.jumpEpisodeHintNoTotal', '输入集数 · 按完成跳转'))
-          : '';
-      } else {
-        title.textContent = state.kind === 'code' ? uiText('ui.keypadCode', '输入验证码') : uiText('ui.keypadPhone', '输入手机号');
-        value.textContent = state.value || uiText('ui.keypadNumber', '请输入数字'); value.classList.toggle('is-empty', !state.value);
-        hint.textContent = state.open ? uiText('ui.keypadPhoneHelp', '{length} / {max} 位 · {country} · 也可使用遥控器数字键', { length: state.value.length, max: state.maxLength, country: state.countryName }) : '';
-      }
+      value.textContent = state.value || uiText('ui.keypadNumber', '请输入数字'); value.classList.toggle('is-empty', !state.value);
+      document.getElementById('account-keypad-hint').textContent = state.open ? uiText('ui.keypadPhoneHelp', '{length} / {max} 位 · {country} · 也可使用遥控器数字键', { length: state.value.length, max: state.maxLength, country: state.countryName }) : '';
       document.getElementById('account-keypad-error').textContent = state.error;
       if (state.open && document.activeElement !== accountKeypadFocus()) goFocus(accountKeypadFocus());
     },
     change: function (kind, value) {
-      if (kind === 'episode') return;
       var field = document.getElementById(kind === 'phone' ? 'account-phone' : 'account-code');
       field.value = value; renderAccountNumber(field);
     },
     close: function (result) {
-      // Episode jumps share the keypad shell but must never fall through into
-      // the account-page focus/validation path below.
-      if (episodeJumpMode) {
-        episodeJumpMode = false;
-        episodeJumpTotal = 0;
-        var jumpOrigin = episodeJumpReturnFocus; episodeJumpReturnFocus = null;
-        var jumpModal = document.getElementById('account-keypad-modal');
-        if (jumpModal) jumpModal.classList.remove('is-episode-jump');
-        if (result.reason === 'complete') jumpToEpisode(parseInt(result.value, 10), jumpOrigin);
-        else goFocus(jumpOrigin && jumpOrigin.getClientRects && jumpOrigin.getClientRects().length ? jumpOrigin : document.getElementById('player-episode-jump'));
-        return;
-      }
       accountNumberScan.stop();
       var origin = accountKeypadReturnFocus; accountKeypadReturnFocus = null; accountKeypadPhase = '';
       if (result.reason !== 'complete' && result.reason !== 'back') return;

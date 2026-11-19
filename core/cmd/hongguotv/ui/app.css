@@ -221,18 +221,15 @@ html.desktop-shell .hero-media { -webkit-user-select: none; user-select: none; }
 .hero-top-copy span { color: #c9c9d2; font-size: 14px; }
 .hero-top-right { position: absolute; z-index: 3; top: 88px; right: 34px; display: flex; flex-direction: column; align-items: flex-end; gap: 5px; color: #c6c6d0; font-size: 13px; text-shadow: 0 2px 7px rgba(0,0,0,.7); }
 .hero-top-right strong { color: #f0f0f5; font-size: 15px; }
-/* Playback HUD occupies the top-right core-status slot. It stacks the clock
-   over the current/total episode badge. While shown, the status chip is hidden. */
-.player-hud { display: flex; flex-direction: column; align-items: flex-end; justify-content: center; width: 180px; gap: 2px; }
-.player-clock { display: flex; justify-content: flex-end; width: 100%; color: #f0f0f5; font-size: 16px; font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; letter-spacing: .02em; text-shadow: 0 2px 7px rgba(0,0,0,.7); }
-.player-episode-jump { padding: 1px 6px; margin-right: -6px; border: 0; border-radius: 5px; background: transparent; color: #c7c8d2; font-size: 13px; font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; letter-spacing: .02em; text-shadow: 0 2px 7px rgba(0,0,0,.7); cursor: pointer; }
-.player-episode-jump.is-focused, .player-episode-jump:focus:not(.pointer-focus-muted) { outline: none; background: rgba(255,255,255,.16); box-shadow: 0 0 0 2px #fff; color: #fff; }
+/* Playback clock occupies the top-right core-status slot. They are mutually
+   exclusive: while the clock is shown the status chip is hidden. */
+.player-clock { display: flex; justify-content: flex-end; width: 180px; color: #f0f0f5; font-size: 16px; font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; letter-spacing: .02em; text-shadow: 0 2px 7px rgba(0,0,0,.7); }
 .app-shell.is-clock-shown #core-status { display: none; }
 /* The controls-hidden mode hides the whole top-bar via visibility:hidden.
    visibility is inheritable and can be overridden on a child, so keep the
-   HUD painted for the entire playback session. is-hidden (display:none)
-   still wins when JS explicitly hides it outside playback. */
-.app-shell.is-controls-hidden #player-hud { visibility: visible; }
+   clock painted for the entire playback session. is-hidden (display:none)
+   still wins when JS explicitly hides the clock outside playback. */
+.app-shell.is-controls-hidden #player-clock { visibility: visible; }
 .hero-placeholder { position: absolute; z-index: 2; top: 33%; left: 8%; max-width: 500px; }
 .placeholder-kicker { color: #f35d7b; font-size: 15px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
 .hero-placeholder h1 { margin: 12px 0 10px; font-size: 36px; font-size: clamp(28px, 3vw, 48px); }
@@ -924,9 +921,6 @@ html.tv-shell .hero-rank-badge { font-size: 15px; }
 .account-keypad-dialog { width: 780px; max-width: 100%; max-height: 100%; padding: 24px; box-sizing: border-box; overflow-y: auto; border: 1px solid #474653; border-radius: 16px; background: #1c1d27; box-shadow: 0 18px 60px rgba(0,0,0,.5); }
 .account-keypad-body { display: flex; align-items: flex-start; }
 .account-keypad-left { flex: 1 1 auto; min-width: 0; }
-/* Episode-jump reuses the keypad shell but has no phone/QR companion panel. */
-.account-keypad-modal.is-episode-jump .account-keypad-dialog { width: 520px; }
-.account-keypad-modal.is-episode-jump .account-number-scan { display: none; }
 .account-number-scan { flex: 0 0 270px; margin-left: 30px; text-align: center; }
 .account-number-scan h3 { margin: 0 0 14px; font-size: 20px; }
 .account-number-qr-box { width: 240px; height: 240px; margin: 0 auto; }
