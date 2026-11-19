@@ -496,6 +496,7 @@
   var endRecommendationIndex = 0, endRecommendationAnimation = 0, endRecommendationReadyCleanup = null;
   var nextSeasonHint = typeof HongguoNextSeasonHint !== 'undefined' ? HongguoNextSeasonHint.create({ show: showNextSeasonHint, hide: hideNextSeasonHint }) : null;
   var playerClockNode = document.getElementById('player-clock');
+  var playerEpisodeNode = document.getElementById('player-episode');
   // The WebView's own Date reads the device system clock directly, with no
   // JavaScriptInterface bridge crossing into the video-rendering main thread.
   // Only hours/minutes are shown, so a 30s refresh keeps the display current.
@@ -506,11 +507,30 @@
         label: function (now) { return HongguoPlayerClock.formatLabel(now); }
       })
     : null;
+  // Display-only current/total episode badge below the clock. It reads plain
+  // in-memory playback data once when the HUD is shown: no bridge, no timer,
+  // no key handling, no jump-to-episode. Unknown values degrade to "1/--".
+  function updatePlayerEpisodeBadge() {
+    if (!playerEpisodeNode) return;
+    var request = playbackRequest;
+    var item = activePlayback && activePlayback.item || feedItems[feedIndex] || featuredItem;
+    var current = activePlayback && Number(activePlayback.episode) ||
+      request && request.index === feedIndex && Number(request.episode) ||
+      item && Number(item.start_episode) || 0;
+    var total = Number(item && item.episode_count) || 0;
+    var shown = current > 0 ? current : 1;
+    playerEpisodeNode.textContent = shown + '/' + (total > 0 ? total : '--');
+  }
   function showPlayerClock() {
     if (!playerClock || !playerClockNode) return;
     playerClockNode.classList.remove('is-hidden');
     playerClockNode.removeAttribute('aria-hidden');
+    if (playerEpisodeNode) {
+      playerEpisodeNode.classList.remove('is-hidden');
+      playerEpisodeNode.removeAttribute('aria-hidden');
+    }
     shell.classList.add('is-clock-shown');
+    updatePlayerEpisodeBadge();
     playerClock.update();
     playerClock.start();
   }
@@ -519,6 +539,10 @@
     playerClock.stop();
     playerClockNode.classList.add('is-hidden');
     playerClockNode.setAttribute('aria-hidden', 'true');
+    if (playerEpisodeNode) {
+      playerEpisodeNode.classList.add('is-hidden');
+      playerEpisodeNode.setAttribute('aria-hidden', 'true');
+    }
     shell.classList.remove('is-clock-shown');
   }
   var endRecommendations = HongguoEndRecommendations.create({
@@ -9096,6 +9120,10 @@
     if (!activePlayback || !activePlayback.presentation || !event || typeof event.coreIdle !== 'boolean') return;
     activePlayback.presentation.nativeCoreIdle = event.coreIdle;
     finishPlaybackPreparation(activePlayback);
+  });
+  media.addEventListener('nativesoftwarefallback', function () {
+    // Only meaningful while a playback session is live; the notice hides itself.
+    if (activePlayback) showNotice(uiText('ui.softwareFallbackNotice', '硬解能力不足，已切换软解播放'));
   });
   function checkPlaybackData() {
     if (!activePlayback) return;

@@ -210,8 +210,8 @@ func TestReplyPaginationAndOwnership(t *testing.T) {
 
 func TestQualitySelectionAndIndependentCacheKeys(t *testing.T) {
 	options := []miniReelOption{{Height: 1080, Quality: "1080P"}, {Height: 720, Quality: "720P"}, {Height: 480, Quality: "480P"}, {Height: 720, Quality: "720P"}}
-	if got, _ := selectMiniReelQuality(options, "", false); got.Quality != "720P" {
-		t.Error("auto changed")
+	if got, _ := selectMiniReelQuality(options, "", false); got.Quality != "1080P" {
+		t.Error("auto must pick the highest option up to 1080P")
 	}
 	if got, err := selectMiniReelQuality(options, "1080P", false); err != nil || got.Quality != "1080P" {
 		t.Fatal(got, err)
@@ -219,8 +219,8 @@ func TestQualitySelectionAndIndependentCacheKeys(t *testing.T) {
 	if _, err := selectMiniReelQuality(options, "2160P", false); err == nil {
 		t.Error("missing choice must fail")
 	}
-	if got, err := selectMiniReelQuality(options, "2160P", true); err != nil || got.Quality != "720P" {
-		t.Error("next episode fallback failed")
+	if got, err := selectMiniReelQuality(options, "2160P", true); err != nil || got.Quality != "1080P" {
+		t.Error("next episode fallback must pick the highest option up to 1080P")
 	}
 	if got := miniReelQualities(options); len(got) != 3 || got[0] != "480P" || got[2] != "1080P" {
 		t.Error(got)

@@ -1061,6 +1061,7 @@
   "ui.auto": "自動",
   "ui.speedUnsupported": "この速度はデバイスに対応していません",
   "ui.audibleSpeedFallback": "倍速音声を準備できなかったため、通常速度に戻しました",
+  "ui.softwareFallbackNotice": "ハードウェア再生に対応できないため、ソフトウェア再生に切り替えました",
   "ui.audibleSpeedPreparing": "倍速音声を準備中です。準備ができるまで音声付きの通常速度で再生します",
   "settings.audibleSpeed": "音声付き倍速（実験）",
   "settings.audibleSpeedDescription": "webOS 専用、初期設定はオフです。有効にすると倍速時に音声を追加取得し、メモリを使用します。準備に失敗した場合や処理が追いつかない場合は通常速度に戻ります。",

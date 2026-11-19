@@ -1064,6 +1064,7 @@
     'ui.auto': '自动',
     'ui.speedUnsupported': '设备不支持这个倍速',
     'ui.audibleSpeedFallback': '倍速声音准备失败，已恢复正常速度',
+    'ui.softwareFallbackNotice': '硬解能力不足，已切换软解播放',
     'ui.audibleSpeedPreparing': '正在准备倍速声音，暂按有声 1 倍速播放',
     'settings.audibleSpeed': '有声倍速（实验）',
     'settings.audibleSpeedDescription': '仅用于 webOS，默认关闭。开启后，倍速播放会额外读取音频并占用内存；准备失败或设备处理跟不上时恢复有声 1 倍速。',

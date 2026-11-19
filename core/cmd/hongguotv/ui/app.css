@@ -221,15 +221,18 @@ html.desktop-shell .hero-media { -webkit-user-select: none; user-select: none; }
 .hero-top-copy span { color: #c9c9d2; font-size: 14px; }
 .hero-top-right { position: absolute; z-index: 3; top: 88px; right: 34px; display: flex; flex-direction: column; align-items: flex-end; gap: 5px; color: #c6c6d0; font-size: 13px; text-shadow: 0 2px 7px rgba(0,0,0,.7); }
 .hero-top-right strong { color: #f0f0f5; font-size: 15px; }
-/* Playback clock occupies the top-right core-status slot. They are mutually
-   exclusive: while the clock is shown the status chip is hidden. */
-.player-clock { display: flex; justify-content: flex-end; width: 180px; color: #f0f0f5; font-size: 16px; font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; letter-spacing: .02em; text-shadow: 0 2px 7px rgba(0,0,0,.7); }
+/* Playback HUD occupies the top-right core-status slot: the clock stacked over
+   the current/total episode badge. They are mutually exclusive with the status
+   chip: while the HUD is shown the status chip is hidden. */
+.player-hud { display: flex; flex-direction: column; align-items: flex-end; justify-content: center; width: 180px; gap: 2px; }
+.player-clock { display: flex; justify-content: flex-end; width: 100%; color: #f0f0f5; font-size: 16px; font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; letter-spacing: .02em; text-shadow: 0 2px 7px rgba(0,0,0,.7); }
+.player-episode { display: flex; justify-content: flex-end; width: 100%; color: #f0f0f5; font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; letter-spacing: .03em; text-shadow: 0 2px 8px rgba(0,0,0,.9), 0 1px 2px rgba(0,0,0,.85); }
 .app-shell.is-clock-shown #core-status { display: none; }
 /* The controls-hidden mode hides the whole top-bar via visibility:hidden.
    visibility is inheritable and can be overridden on a child, so keep the
-   clock painted for the entire playback session. is-hidden (display:none)
-   still wins when JS explicitly hides the clock outside playback. */
-.app-shell.is-controls-hidden #player-clock { visibility: visible; }
+   clock and episode badge painted for the entire playback session. is-hidden
+   (display:none) still wins when JS explicitly hides them outside playback. */
+.app-shell.is-controls-hidden .player-hud { visibility: visible; }
 .hero-placeholder { position: absolute; z-index: 2; top: 33%; left: 8%; max-width: 500px; }
 .placeholder-kicker { color: #f35d7b; font-size: 15px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
 .hero-placeholder h1 { margin: 12px 0 10px; font-size: 36px; font-size: clamp(28px, 3vw, 48px); }

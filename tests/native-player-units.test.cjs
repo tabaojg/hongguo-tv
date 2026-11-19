@@ -884,3 +884,47 @@ test('optional portrait capture is bound to the active native source and never s
   assert.equal(adapter.capturePortraitBackdrop(id,'5'),false);
   assert.equal(received.length,1);
 });
+
+test('standard Media3 software-decode fallback emits a one-shot page notice', () => {
+  const bridgeSource = fs.readFileSync(require.resolve('../android/app/src/main/java/rocks/aston/hongguotv/PlayerBridge.java'), 'utf8');
+  // The notice is tied to the exact moment a software decoder is confirmed for
+  // the HEVC retry, guarded so it fires at most once per session.
+  assert.match(bridgeSource, /softwareFallbackNotified/);
+  assert.match(bridgeSource, /if\(!current\.softwareFallbackNotified\)\{/);
+  assert.match(bridgeSource, /current\.softwareFallbackNotified=true;/);
+  assert.match(bridgeSource, /send\(current\.id,"software-fallback",null\)/);
+  const decoderBlock = bridgeSource.slice(
+    bridgeSource.indexOf('"video_decoder".equals(field)&&configuredTarget.forceSoftwareHevc'),
+    bridgeSource.indexOf('updateDiagnostic(current,"preparing")'));
+  assert.match(decoderBlock, /hevc_software_retry","initialized"/);
+  assert.match(decoderBlock, /software-fallback/);
+  // MPV edition must not be affected: it has its own decode-mode policy.
+  const mpvBridgeSource = fs.readFileSync(require.resolve('../android/app/src/mpv/java/rocks/aston/hongguotv/MpvPlayerBridge.java'), 'utf8');
+  assert.doesNotMatch(mpvBridgeSource, /software-fallback/);
+});
+
+test('native playback turns a software-fallback event into a page notice signal for the active source only', () => {
+  const f = fixture(), id = activateNative(f);
+  let signals = 0;
+  f.document.getElementById('hero-video').addEventListener('nativesoftwarefallback', function () { signals++; });
+  f.context.window.HongguoNativePlayback.event(id, 'software-fallback');
+  assert.equal(signals, 1, 'the active source signals the page once');
+  f.context.window.HongguoNativePlayback.event(id, 'software-fallback');
+  assert.equal(signals, 2, 'native only forwards what the bridge emits; one-shot lives in the bridge');
+  f.context.window.HongguoNativePlayback.event('stale-source', 'software-fallback');
+  assert.equal(signals, 2, 'a stale source cannot surface a notice');
+});
+
+test('app surfaces the software-fallback notice with a localized, auto-hiding message', () => {
+  assert.match(appSource, /addEventListener\('nativesoftwarefallback', function \(\) \{/);
+  const handler = appSource.slice(appSource.indexOf("addEventListener('nativesoftwarefallback'"));
+  const tail = handler.slice(0, handler.indexOf('});'));
+  assert.match(tail, /showNotice\(uiText\('ui\.softwareFallbackNotice', '硬解能力不足，已切换软解播放'\)\)/);
+  assert.match(tail, /if \(activePlayback\)/);
+  // showNotice self-hides; verify the timer still exists so the notice vanishes.
+  assert.match(appSource, /showNotice\.timer = setTimeout\(function \(\) \{ notice\.classList\.add\('is-hidden'\); \}, 3200\)/);
+  for (const locale of ['zh-CN', 'zh-TW', 'ja-JP']) {
+    const source = fs.readFileSync(require.resolve('../core/cmd/hongguotv/ui/locales/' + locale + '.js'), 'utf8');
+    assert.match(source, /'ui\.softwareFallbackNotice'|"ui\.softwareFallbackNotice"/, locale + ' must localize the notice');
+  }
+});

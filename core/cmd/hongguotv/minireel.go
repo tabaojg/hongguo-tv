@@ -2045,9 +2045,13 @@ func bitCount(value uint) int {
 }
 
 func chooseMiniReelOption(options []miniReelOption) miniReelOption {
+	// Prefer full-HD when available: pick the highest option up to 1080p so
+	// automatic quality actually delivers HD on capable TVs/projectors. Only
+	// fall back to the uncapped set when no option is at or below 1080p (e.g.
+	// 4K-only sources). Hardware decoding stays the client's responsibility.
 	choices := make([]miniReelOption, 0, len(options))
 	for _, option := range options {
-		if option.Height > 0 && option.Height <= 720 {
+		if option.Height > 0 && option.Height <= 1080 {
 			choices = append(choices, option)
 		}
 	}

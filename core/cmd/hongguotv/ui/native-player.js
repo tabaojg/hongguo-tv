@@ -519,6 +519,9 @@
       detail = detail || {};
       if (name === 'buffering' || name === 'waiting') { state.readyState = 1; state.seeking = false; dispatch('waiting', detail); return; }
       if (name === 'outputstate') { dispatch('nativeoutputstate', { type: 'nativeoutputstate', coreIdle: detail.core_idle }); return; }
+      // standard/Media3 reports once when hardware decode failed and fell back
+      // to a software decoder; surface it as a short, auto-hiding notice.
+      if (name === 'software-fallback') { dispatch('nativesoftwarefallback', { type: 'nativesoftwarefallback' }); return; }
       if (name === 'frame') {
         state.readyState = 3; state.videoWidth = Number(detail.width) || 0; state.videoHeight = Number(detail.height) || 0;
         if (primaryMedia3 || !fixedNative && attempt.switched) {

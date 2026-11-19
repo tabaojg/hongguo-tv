@@ -94,6 +94,7 @@ final class PlayerBridge implements NativePlayerAdapter {
         long position;
         boolean triedSoftwareHevcFallback;
         boolean forceSoftwareHevc;
+        boolean softwareFallbackNotified;
         Session(long generation, String id, List<String> urls, Map<String,String> headers,boolean live,boolean compatibility) {
             this.generation=generation;this.id=id;this.urls=urls;this.headers=headers;this.live=live;this.compatibility=compatibility;
             pcmAudio=PlaybackCodecPolicy.pcmAudio(compatibility,live,Build.VERSION.SDK_INT);
@@ -239,6 +240,13 @@ final class PlayerBridge implements NativePlayerAdapter {
                     if("video_decoder".equals(field)&&configuredTarget.forceSoftwareHevc&&video!=null
                             &&MimeTypes.VIDEO_H265.equals(video.sampleMimeType)&&PlaybackCodecPolicy.platformSoftware(name)){
                         diagnosticFields.put("hevc_software_retry","initialized");
+                        // v0.2.179: hardware decode failed and this session fell
+                        // back to a software decoder. Tell the page once so it
+                        // can surface a short notice; showNotice auto-hides.
+                        if(!current.softwareFallbackNotified){
+                            current.softwareFallbackNotified=true;
+                            send(current.id,"software-fallback",null);
+                        }
                     }
                 }catch(Exception ignored){}
                 updateDiagnostic(current,"preparing");saveDiagnostic();

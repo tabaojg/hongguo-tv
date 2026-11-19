@@ -1,6 +1,7 @@
 const {test} = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const vm = require('node:vm');
 const HongguoPlayerClock = require('../core/cmd/hongguotv/ui/player-clock.js');
 const {formatTime, formatLabel, localNow, mount} = HongguoPlayerClock;
 
@@ -178,43 +179,82 @@ test('app.js mounts the clock with the local clock source and 30-second ticks', 
   assert.doesNotMatch(source, /createSyncedNow/);
 });
 
-test('clock node lives in the top bar beside core-status, not in hero-top-right', () => {
+test('clock and episode badge live in a HUD beside core-status, not in hero-top-right', () => {
   const html = fs.readFileSync(require.resolve('../core/cmd/hongguotv/ui/index.html'), 'utf8');
   const statusTag = html.match(/<button[^>]*id="core-status"[^>]*>/);
+  const hudTag = html.match(/<div id="player-hud"[^>]*>/);
   const clockTag = html.match(/<span id="player-clock"[^>]*>/);
+  const episodeTag = html.match(/<span id="player-episode"[^>]*>/);
   assert.ok(statusTag, 'core-status button exists');
+  assert.ok(hudTag, 'player-hud node exists');
   assert.ok(clockTag, 'player-clock node exists');
-  // The clock directly follows the core-status chip inside the same top bar.
-  assert.ok(html.indexOf(clockTag[0]) > html.indexOf(statusTag[0]));
-  assert.match(html.slice(html.indexOf(statusTag[0]), html.indexOf(clockTag[0]) + clockTag[0].length), /id="core-status"[\s\S]*?<\/button>\s*<span id="player-clock"/);
+  assert.ok(episodeTag, 'display-only player-episode node exists');
+  // The HUD directly follows the core-status chip inside the same top bar.
+  assert.ok(html.indexOf(hudTag[0]) > html.indexOf(statusTag[0]));
+  assert.match(html.slice(html.indexOf(statusTag[0]), html.indexOf(hudTag[0]) + hudTag[0].length), /id="core-status"[\s\S]*?<\/button>\s*<div id="player-hud"/);
+  // The badge is a plain span, not an interactive button with a jump action.
+  assert.doesNotMatch(episodeTag[0], /<button|data-action|tabindex/);
   const heroTopRight = html.match(/<div class="hero-top-right">[\s\S]*?<\/div>/);
   assert.ok(heroTopRight, 'hero-top-right still exists');
-  assert.doesNotMatch(heroTopRight[0], /player-clock/);
+  assert.doesNotMatch(heroTopRight[0], /player-clock|player-hud/);
 });
 
-test('CSS hides core-status while the clock shows and keeps the clock visible with controls hidden', () => {
+test('CSS hides core-status while the HUD shows and keeps it visible with controls hidden', () => {
   const css = fs.readFileSync(require.resolve('../core/cmd/hongguotv/ui/app.css'), 'utf8');
   assert.match(css, /\.app-shell\.is-clock-shown #core-status \{ display: none; \}/);
-  assert.match(css, /\.app-shell\.is-controls-hidden #player-clock \{ visibility: visible; \}/);
+  assert.match(css, /\.player-hud \{[\s\S]*?flex-direction: column;[\s\S]*?\}/);
+  assert.match(css, /\.app-shell\.is-controls-hidden \.player-hud \{ visibility: visible; \}/);
 });
 
-test('showPlayerClock/hidePlayerClock toggle the clock node and the is-clock-shown mutual-exclusion class', () => {
+test('episode badge uses a prominent, legible style', () => {
+  const css = fs.readFileSync(require.resolve('../core/cmd/hongguotv/ui/app.css'), 'utf8');
+  const rule = css.match(/\.player-episode \{[^}]*\}/);
+  assert.ok(rule, '.player-episode rule exists');
+  assert.match(rule[0], /color: #f0f0f5/);
+  assert.match(rule[0], /font-size: 15px/);
+  assert.match(rule[0], /font-weight: 600/);
+});
+
+test('showPlayerClock/hidePlayerClock toggle clock and episode nodes together', () => {
   const source = fs.readFileSync(require.resolve('../core/cmd/hongguotv/ui/app.js'), 'utf8');
   const show = source.slice(source.indexOf('function showPlayerClock()'), source.indexOf('function hidePlayerClock()'));
   const hide = source.slice(source.indexOf('function hidePlayerClock()'), source.indexOf('var endRecommendations'));
   assert.match(show, /playerClockNode\.classList\.remove\('is-hidden'\)/);
+  assert.match(show, /playerEpisodeNode\.classList\.remove\('is-hidden'\)/);
+  assert.match(show, /updatePlayerEpisodeBadge\(\)/);
   assert.match(show, /shell\.classList\.add\('is-clock-shown'\)/);
   assert.match(hide, /playerClockNode\.classList\.add\('is-hidden'\)/);
+  assert.match(hide, /playerEpisodeNode\.classList\.add\('is-hidden'\)/);
   assert.match(hide, /shell\.classList\.remove\('is-clock-shown'\)/);
 });
 
-test('no episode badge or jump-to-episode wiring remains in the player UI', () => {
+test('episode badge is display-only: no jump-to-episode wiring remains', () => {
   const html = fs.readFileSync(require.resolve('../core/cmd/hongguotv/ui/index.html'), 'utf8');
   const css = fs.readFileSync(require.resolve('../core/cmd/hongguotv/ui/app.css'), 'utf8');
   const source = fs.readFileSync(require.resolve('../core/cmd/hongguotv/ui/app.js'), 'utf8');
   const keypad = fs.readFileSync(require.resolve('../core/cmd/hongguotv/ui/numeric-keypad.js'), 'utf8');
-  assert.doesNotMatch(html, /player-hud|player-episode-jump|episode-jump/);
-  assert.doesNotMatch(css, /player-hud|player-episode-jump|is-episode-jump/);
-  assert.doesNotMatch(source, /episodeJumpMode|openEpisodeJump|jumpToEpisode|updatePlayerEpisodeBadge|playerHudNode|dataset\.action === 'episode-jump'/);
+  assert.doesNotMatch(html, /player-episode-jump|episode-jump|data-action="episode-jump"/);
+  assert.doesNotMatch(css, /player-episode-jump|is-episode-jump/);
+  assert.doesNotMatch(source, /episodeJumpMode|openEpisodeJump|jumpToEpisode|dataset\.action === 'episode-jump'/);
   assert.doesNotMatch(keypad, /episode/);
+});
+
+test('updatePlayerEpisodeBadge renders current/total with safe fallbacks and no I/O', () => {
+  const source = fs.readFileSync(require.resolve('../core/cmd/hongguotv/ui/app.js'), 'utf8');
+  const fn = source.slice(source.indexOf('function updatePlayerEpisodeBadge()'), source.indexOf('function showPlayerClock()'));
+  const context = {activePlayback: null, playbackRequest: null, feedItems: [], feedIndex: -1, featuredItem: null, playerEpisodeNode: null};
+  vm.createContext(context);
+  vm.runInContext(fn + '\nthis.update = updatePlayerEpisodeBadge;', context);
+  const sink = {textContent: ''};
+  context.playerEpisodeNode = sink;
+  context.update();
+  assert.equal(sink.textContent, '1/--');
+
+  context.activePlayback = {episode: 5, item: {episode_count: 200}};
+  context.update();
+  assert.equal(sink.textContent, '5/200');
+
+  // The function only writes textContent; it never calls the clock bridge,
+  // schedules a timer, or touches playback state.
+  assert.doesNotMatch(fn, /setInterval|setTimeout|currentTimeMillis|Hongguo/);
 });
