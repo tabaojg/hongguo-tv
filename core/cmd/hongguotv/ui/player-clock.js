@@ -58,6 +58,37 @@
     return new Date();
   }
 
+  // The Android system-clock bridge runs on the WebView main thread, the same
+  // thread that renders video. Polling it every second contends with playback
+  // on weaker TV/projector hardware and can stall the picture. Read the
+  // authoritative system time once, advance with a monotonic local clock in
+  // between, and re-sync only occasionally (or on the next resumed playback).
+  function createSyncedNow(options) {
+    options = options || {};
+    var syncMs = options.syncMs > 0 ? options.syncMs : 60000;
+    var scope = options.scope || (typeof window !== 'undefined' ? window : null);
+    var source = typeof options.source === 'function' ? options.source : systemNow;
+    var monotonic = typeof options.monotonic === 'function' ? options.monotonic : function () {
+      return typeof performance !== 'undefined' && performance && typeof performance.now === 'function'
+        ? performance.now() : Date.now();
+    };
+    var anchorWall = 0;
+    var anchorMono = 0;
+    var synced = function () {
+      var mono = monotonic();
+      if (!anchorWall || mono - anchorMono >= syncMs) {
+        anchorWall = source(scope).getTime();
+        anchorMono = mono;
+        return new Date(anchorWall);
+      }
+      return new Date(anchorWall + (mono - anchorMono));
+    };
+    // Force the next read to consult the authoritative source again, e.g. when
+    // a new playback session starts. Still just one bridge call per session.
+    synced.resync = function () { anchorWall = 0; anchorMono = 0; };
+    return synced;
+  }
+
   function mount(element, options) {
     options = options || {};
     var doc = element && element.ownerDocument;
@@ -117,6 +148,7 @@
     formatTime: formatTime,
     formatLabel: formatLabel,
     systemNow: systemNow,
+    createSyncedNow: createSyncedNow,
     mount: mount
   };
 }));

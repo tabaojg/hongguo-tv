@@ -2,7 +2,7 @@ const {test} = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const HongguoPlayerClock = require('../core/cmd/hongguotv/ui/player-clock.js');
-const {formatTime, formatLabel, systemNow, mount} = HongguoPlayerClock;
+const {formatTime, formatLabel, systemNow, createSyncedNow, mount} = HongguoPlayerClock;
 
 function date(hour, minute, second) {
   return new Date(2026, 0, 1, hour, minute, second, 0);
@@ -200,9 +200,61 @@ test('Android bridge exposing currentTimeMillis is registered on the WebView', (
   assert.match(activity, /addJavascriptInterface\(new Object\(\) \{[\s\S]*?@JavascriptInterface public long currentTimeMillis\(\) \{\s*return System\.currentTimeMillis\(\);\s*\}\s*\}, "HongguoTVClock"\)/);
 });
 
-test('app.js mounts the clock with the system time source and one-second ticks', () => {
+test('app.js mounts the clock with the low-frequency synced source and one-second ticks', () => {
   const source = fs.readFileSync(require.resolve('../core/cmd/hongguotv/ui/app.js'), 'utf8');
-  assert.match(source, /HongguoPlayerClock\.mount\(playerClockNode, \{[\s\S]*?now: HongguoPlayerClock\.systemNow,[\s\S]*?tickMs: 1000,/);
+  assert.match(source, /HongguoPlayerClock\.createSyncedNow\(\{ syncMs: 60000 \}\)/);
+  assert.match(source, /now: playerClockNow \|\| HongguoPlayerClock\.systemNow,/);
+  assert.match(source, /HongguoPlayerClock\.mount\(playerClockNode, \{[\s\S]*?tickMs: 1000,/);
+});
+
+test('createSyncedNow reads the source once then advances on the local monotonic clock', () => {
+  let reads = 0;
+  const bridgeEpoch = Date.UTC(2026, 0, 1, 10, 0, 0);
+  let mono = 0;
+  const source = () => { reads++; return new Date(bridgeEpoch); };
+  const now = createSyncedNow({syncMs: 60000, source, monotonic: () => mono});
+
+  assert.equal(now().getTime(), bridgeEpoch); // first call syncs from the source
+  assert.equal(reads, 1);
+  mono += 1000;
+  assert.equal(now().getTime(), bridgeEpoch + 1000); // local tick, no bridge read
+  mono += 1000;
+  assert.equal(now().getTime(), bridgeEpoch + 2000);
+  assert.equal(reads, 1);
+});
+
+test('createSyncedNow re-reads the source after the sync interval elapses', () => {
+  let reads = 0;
+  let bridgeEpoch = Date.UTC(2026, 0, 1, 10, 0, 0);
+  let mono = 0;
+  const source = () => { reads++; return new Date(bridgeEpoch); };
+  const now = createSyncedNow({syncMs: 60000, source, monotonic: () => mono});
+
+  now();
+  assert.equal(reads, 1);
+  mono += 59000; // just under the interval
+  now();
+  assert.equal(reads, 1);
+  mono += 2000; // crosses 60000
+  assert.equal(now().getTime(), bridgeEpoch); // re-sync returns the fresh source value
+  assert.equal(reads, 2);
+});
+
+test('createSyncedNow re-syncs on demand for a fresh playback session', () => {
+  let reads = 0;
+  let bridgeEpoch = Date.UTC(2026, 0, 1, 10, 0, 0);
+  let mono = 0;
+  const source = () => { reads++; return new Date(bridgeEpoch); };
+  const now = createSyncedNow({syncMs: 60000, source, monotonic: () => mono});
+
+  now();
+  bridgeEpoch += 5000; // system clock jumped while playback was stopped
+  now(); // within interval, still uses local advance
+  assert.equal(reads, 1);
+  assert.equal(now().getTime(), bridgeEpoch - 5000);
+  now.resync(); // next playback session forces a fresh system-time read
+  assert.equal(now().getTime(), bridgeEpoch);
+  assert.equal(reads, 2);
 });
 
 test('clock node lives in the top bar beside core-status, not in hero-top-right', () => {
@@ -231,6 +283,7 @@ test('showPlayerClock/hidePlayerClock toggle the clock node and the is-clock-sho
   const hide = source.slice(source.indexOf('function hidePlayerClock()'), source.indexOf('var endRecommendations'));
   assert.match(show, /playerClockNode\.classList\.remove\('is-hidden'\)/);
   assert.match(show, /shell\.classList\.add\('is-clock-shown'\)/);
+  assert.match(show, /playerClockNow\.resync\(\)/);
   assert.match(hide, /playerClockNode\.classList\.add\('is-hidden'\)/);
   assert.match(hide, /shell\.classList\.remove\('is-clock-shown'\)/);
 });
