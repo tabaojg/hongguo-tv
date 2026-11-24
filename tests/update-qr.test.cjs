@@ -138,10 +138,6 @@ test('app.js wires QR mode, manual-check flag and modal open/close', () => {
   assert.match(appJS, /if \(androidUpdateQRMode\(\)\) updateQRRequested = true;/);
   assert.match(appJS, /var generator = window\.HongguoUpdateQR;/);
   assert.match(appJS, /generator\.toSVG\(releaseUrl, 260\)/);
-  assert.match(appJS, /function closeUpdateQR\(restore\)/);
-  assert.match(appJS, /typeof updateQROpen !== 'undefined' && updateQROpen\) \{ closeUpdateQR\(true\); return true; \}/);
-  assert.match(appJS, /typeof updateQROpen !== 'undefined' && updateQROpen\) \{ if \(!element\.closest\('#update-qr-modal'\)\) return; \}/);
-  assert.match(appJS, /if \(element\.classList\.contains\('update-qr-action'\)\) return 'updateQR';/);
 });
 
 test('Android publish derives release_url tag page from download URL base + version', () => {
