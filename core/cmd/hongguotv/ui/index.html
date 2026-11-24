@@ -79,7 +79,7 @@
       </div>
       <div class="sidebar-bottom">
         <button class="side-item side-item-secondary" data-page="account" data-focus="sidebar-account" aria-label="我的" data-i18n-aria-label="nav.account"><svg class="side-icon"><use href="#icon-user" xlink:href="#icon-user"></use></svg><span data-i18n="nav.account">我的</span></button>
-        <button class="side-item side-item-secondary" data-page="settings" data-focus="sidebar-settings" aria-label="设置" data-i18n-aria-label="nav.settings"><svg class="side-icon"><use href="#icon-settings" xlink:href="#icon-settings"></use></svg><span data-i18n="nav.settings">设置</span></button>
+        <button class="side-item side-item-secondary" data-page="settings" data-focus="sidebar-settings" aria-label="设置" data-i18n-aria-label="nav.settings"><svg class="side-icon"><use href="#icon-settings" xlink:href="#icon-settings"></use></svg><span data-i18n="nav.settings">设置</span><span class="side-notification-dot is-hidden" id="announcement-sidebar-badge" aria-hidden="true"></span></button>
       </div>
     </aside>
     <div class="watching-return-tooltip is-hidden" id="watching-return-tooltip" role="tooltip"><span class="watching-return-kicker" data-i18n="watching.continue">继续观看</span><strong id="watching-return-tooltip-title"></strong><span class="watching-return-meta" id="watching-return-tooltip-meta"></span></div>
@@ -362,6 +362,11 @@
 
       <section class="settings-page page-workspace is-hidden" id="settings-page" aria-labelledby="settings-title">
         <div class="settings-heading"><h1 id="settings-title" data-i18n="settings.title">设置</h1></div>
+        <section class="settings-card app-update-card is-hidden" id="system-announcements-card" aria-live="polite">
+          <h2 data-i18n="settings.announcementsTitle">系统公告</h2>
+          <p data-i18n="settings.announcementsDescription">上游服务或应用的重要变化会显示在这里。</p>
+          <div id="system-announcements"></div>
+        </section>
         <div class="settings-card app-update-card" id="sidebar-display-settings">
           <h2 data-i18n="settings.sidebar">侧边栏显示</h2>
           <p data-i18n="settings.sidebarDescription">选择导航栏的显示方式。默认显示菜单文字，也可以只显示图标以扩大内容区域。</p>
@@ -434,6 +439,12 @@
           <div class="app-update-actions"><button class="episode-prefetch-action account-action" id="episode-prefetch-range" data-mode="range" data-focus="episode-prefetch-range" aria-pressed="false" data-i18n="settings.episodePrefetchRange">边播边下</button><button class="episode-prefetch-action account-action" id="episode-prefetch-full" data-mode="full" data-focus="episode-prefetch-full" aria-pressed="false" data-i18n="settings.episodePrefetchFull">整集预下载</button></div>
           <p id="episode-prefetch-state" role="status" aria-live="polite"></p>
         </div>
+        <div class="settings-card app-update-card is-hidden" id="hevc-playback-settings">
+          <h2 data-i18n="settings.hevcDecode">HEVC 解码</h2>
+          <p data-i18n="settings.hevcPlaybackDescription">仅影响原生播放器的 HEVC 解码。默认沿用兼容策略；卡顿时可尝试硬件优先，画面异常请切回自动。下次播放或切集时生效。</p>
+          <div class="app-update-actions"><button class="hevc-hardware-action account-action" data-mode="standard" data-focus="hevc-decode-auto" aria-pressed="true" data-i18n="settings.autoDecodeDefault">自动（默认）</button><button class="hevc-hardware-action account-action" data-mode="hardware" data-focus="hevc-decode-hardware" aria-pressed="false" data-i18n="settings.hardwareDecodePriority">硬件解码优先</button></div>
+          <p id="hevc-decode-state" role="status" aria-live="polite"></p>
+        </div>
         <div class="settings-card app-update-card is-hidden" id="mpv-playback-settings">
           <h2 data-i18n="settings.playback">播放解码</h2>
           <p data-i18n="settings.playbackDescription">自动解码优先尝试硬件加速；画面异常时可选软件解码。设置在下次播放或切集时生效。</p>
@@ -496,6 +507,15 @@
             <button class="recommended-app-action" data-app-id="yunying" data-focus="apps-yunying" aria-disabled="true" data-i18n="apps.loading">正在获取安装包信息…</button>
             <div class="recommended-app-progress is-hidden" role="progressbar" aria-label="下载进度" data-i18n-aria-label="apps.downloadProgress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span></span></div><p class="recommended-app-status" role="status"></p>
           </div><img class="recommended-app-screen" src="/images/apps/yunying-screen.jpg" alt="云映 TV 应用界面" data-i18n-alt="apps.yunyingScreen" width="480" height="270" loading="lazy">
+        </article>
+        <article class="recommended-app-card" data-recommended-app="mygo">
+          <div class="recommended-app-info">
+            <div class="recommended-app-title"><img class="recommended-app-icon" src="/images/apps/mygo.svg" alt="" width="66" height="66"><div><h2 data-i18n="apps.mygoName">My Music+</h2><span data-i18n="apps.mygoTagline">把音乐带到大屏上</span></div></div>
+            <p class="recommended-app-description" data-i18n="apps.mygoDescription">音乐源、歌单、歌词与后台播放，遥控器轻松操作。</p>
+            <div class="recommended-app-meta"><span data-app-android data-i18n="apps.androidBaseline">Android 6.0 及以上</span><span data-app-version></span><span data-app-size></span></div>
+            <button class="recommended-app-action" data-app-id="mygo" data-focus="apps-mygo" aria-disabled="true" data-i18n="apps.loading">正在获取安装包信息…</button>
+            <div class="recommended-app-progress is-hidden" role="progressbar" aria-label="下载进度" data-i18n-aria-label="apps.downloadProgress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span></span></div><p class="recommended-app-status" role="status"></p>
+          </div><img class="recommended-app-screen" src="/images/apps/mygo-screen.png" alt="My Music+ 应用界面" data-i18n-alt="apps.mygoScreen" width="480" height="270" loading="lazy">
         </article>
         <p class="recommended-apps-note" data-i18n="apps.note">选择应用后下载安装，安装需在系统界面确认。</p>
       </section>
@@ -690,6 +710,7 @@
   <script src="/sidebar-settings.js"></script>
   <script src="/watching-return.js"></script>
   <script src="/startup-page.js"></script>
+  <script src="/announcements.js"></script>
   <script src="/episode-wheel.js"></script>
   <script src="/playback-pointer.js"></script>
   <script src="/desktop-mini-player.js"></script>

@@ -62,6 +62,7 @@
     accountActions: '.account-action',
     appUpdates: '.app-update-action',
     updateQR: '.update-qr-action',
+    announcements: '.announcement-action',
     recommendedApps: '.recommended-app-action',
     webosUpdateNotes: '.webos-update-notes',
     localeActions: '.locale-action',
@@ -98,6 +99,8 @@
     ,accountCountry: '#account-country'
     ,accountCountryItems: '.account-country-item, #account-country-close'
   };
+  var focusSelector = Object.keys(zoneSelectors).map(function (zone) { return zoneSelectors[zone]; }).join(',');
+  var paintedFocus = null;
   var status = document.getElementById('core-status');
   var coreStatusLabel = document.getElementById('core-status-label');
   var coreStatusState = 'connecting';
@@ -467,8 +470,9 @@
   // Bounded, memory-only diagnostics. No drama IDs, titles or account data.
   window.HongguoTVPlaybackTiming = { snapshot: function () { return playbackTiming.map(function (item) { return Object.assign({}, item); }); } };
   var episodePrefetch = HongguoEpisodePrefetch.create({
-    maxRetries: window.HongguoWebOS ? 1 : 0,
-    retryDelayMs: 3000,
+    maxRetries: window.HongguoWebOS ? 3 : 0,
+    retryDelayMs: window.HongguoWebOS ? 1500 : 3000,
+    retryWindowMs: window.HongguoWebOS ? 12000 : 0,
     maxAgeMs: window.HongguoWebOS ? 120000 : 0,
     fullMaxAgeMs: 110 * 60 * 1000,
     lookup: function (info, signal) {
@@ -485,7 +489,12 @@
       // complete-file resolver, while range preparation must stay on the
       // bounded Range path and never silently download the whole episode.
       var params = HongguoEpisodePrefetch.prepareParams(target);
-      return fetchData('/api/v1/play/info?' + new URLSearchParams(params), signal ? { signal: signal } : {});
+      return fetchData('/api/v1/play/info?' + new URLSearchParams(params), signal ? { signal: signal } : {}).then(function (data) {
+        if (window.HongguoWebOS && window.HongguoWebOSAudio && typeof window.HongguoWebOSAudio.warm === 'function' && data && data.path) {
+          try { window.HongguoWebOSAudio.warm(data.path, signal); } catch (ignored) {}
+        }
+        return data;
+      });
     }
   });
   var applicationInBackground = false;
@@ -1193,36 +1202,39 @@
   function scanModalOpen() { return searchScanOpen || danmakuScanOpen; }
 
   function focusables(selector) {
-    var result = [];
-    var query = selector || Object.keys(zoneSelectors).map(function (zone) { return zoneSelectors[zone]; }).join(',');
-    Array.prototype.forEach.call(document.querySelectorAll(query), function (element) {
-      var insideModal = element.closest && element.closest('#detail-modal');
-      if (coreConnectionModalOpen) { if (!element.closest('#core-connection-modal')) return; }
-      else if (typeof updateQROpen !== 'undefined' && updateQROpen) { if (!element.closest('#update-qr-modal')) return; }
-      else if (scanModalOpen()) { if (!element.closest('#search-scan-modal')) return; }
-      else if (accountCountryModalOpen) { if (!element.closest('#account-country-modal')) return; }
-      else if (accountKeypadOpen()) { if (!element.closest('#account-keypad-modal')) return; }
-      else if (supportModalOpen) { if (!element.closest('#support-modal')) return; }
-      else if (rankFilterOpen) { if (!element.closest('#rank-filter-modal')) return; }
-      else if (typeof actorWorksOpen !== 'undefined' && actorWorksOpen) { if (!element.closest('#actor-works-modal')) return; }
-      else if (detailCastOpen) { if (!element.closest('#detail-cast-modal')) return; }
-      else if (confirmOpen) { if (!element.closest('#confirm-modal')) return; }
-      else if (typeof playbackCommandMenuOpen !== 'undefined' && playbackCommandMenuOpen) { if (!element.closest('#playback-command-menu')) return; }
-      else if (playerOptionsOpen) { if (!element.closest('#player-options')) return; }
-      else if (discussionOpen) { if (!element.closest('#discussion-panel')) return; }
-      else if (endRecommendations && endRecommendations.isOpen()) { if (!element.closest('#end-recommendations')) return; }
-      else if (element.closest('#playback-command-menu')) return;
-      else if (element.closest('#end-recommendations')) return;
-      else if (element.closest('#discussion-panel')) return;
-      else if (detailModalOpen ? !insideModal : insideModal) return;
-      // Cached pages can contain hundreds of hidden cards. Discard them
-      // before resolving computed styles on every remote focus check.
-      if (element.disabled) return;
-      if (!element.getClientRects || !element.getClientRects().length) return;
-      var style = window.getComputedStyle(element);
-      if (style.display !== 'none' && style.visibility !== 'hidden') result.push(element);
-    });
-    return result;
+    return Array.prototype.filter.call(document.querySelectorAll(selector || focusSelector), focusVisible);
+  }
+
+  function focusVisible(element) {
+    var insideModal = element.closest && element.closest('#detail-modal');
+    if (coreConnectionModalOpen) { if (!element.closest('#core-connection-modal')) return false; }
+    else if (scanModalOpen()) { if (!element.closest('#search-scan-modal')) return false; }
+    else if (accountCountryModalOpen) { if (!element.closest('#account-country-modal')) return false; }
+    else if (accountKeypadOpen()) { if (!element.closest('#account-keypad-modal')) return false; }
+    else if (supportModalOpen) { if (!element.closest('#support-modal')) return false; }
+    else if (rankFilterOpen) { if (!element.closest('#rank-filter-modal')) return false; }
+    else if (typeof actorWorksOpen !== 'undefined' && actorWorksOpen) { if (!element.closest('#actor-works-modal')) return false; }
+    else if (detailCastOpen) { if (!element.closest('#detail-cast-modal')) return false; }
+    else if (confirmOpen) { if (!element.closest('#confirm-modal')) return false; }
+    else if (typeof playbackCommandMenuOpen !== 'undefined' && playbackCommandMenuOpen) { if (!element.closest('#playback-command-menu')) return false; }
+    else if (playerOptionsOpen) { if (!element.closest('#player-options')) return false; }
+    else if (discussionOpen) { if (!element.closest('#discussion-panel')) return false; }
+    else if (endRecommendations && endRecommendations.isOpen()) { if (!element.closest('#end-recommendations')) return false; }
+    else if (element.closest('#playback-command-menu')) return false;
+    else if (element.closest('#end-recommendations')) return false;
+    else if (element.closest('#discussion-panel')) return false;
+    else if (detailModalOpen ? !insideModal : insideModal) return false;
+    // Cached pages can contain hundreds of hidden cards. Discard them
+    // before resolving computed styles on every remote focus check.
+    if (element.disabled) return false;
+    if (!element.getClientRects || !element.getClientRects().length) return false;
+    var style = window.getComputedStyle(element);
+    return style.display !== 'none' && style.visibility !== 'hidden';
+  }
+
+  function isFocusTarget(element) {
+    // Validate the one candidate without measuring every card on cached pages.
+    return !!(element && element.matches && element.matches(focusSelector) && focusVisible(element));
   }
 
   function firstVisible(selector) {
@@ -1235,18 +1247,20 @@
   }
 
   function remoteFocusTarget() {
-    var painted = document.querySelector('.is-focused');
-    if (painted && focusables().indexOf(painted) >= 0) return painted;
+    var painted = paintedFocus;
+    if (isFocusTarget(painted)) return painted;
     var active = document.activeElement;
-    if (active && focusables().indexOf(active) >= 0) return active;
+    if (isFocusTarget(active)) return active;
     var remembered = lastPageFocus[pageMode()];
-    if (remembered && focusables().indexOf(remembered) >= 0) return remembered;
+    if (isFocusTarget(remembered)) return remembered;
     return null;
   }
 
   function paintFocus(element) {
-    document.querySelectorAll('.is-focused').forEach(function (node) { node.classList.remove('is-focused'); });
-    if (element) element.classList.add('is-focused');
+    if (paintedFocus === element) return;
+    if (paintedFocus) paintedFocus.classList.remove('is-focused');
+    paintedFocus = element || null;
+    if (paintedFocus) paintedFocus.classList.add('is-focused');
   }
 
   function revealSidebarFocus(element) {
@@ -1332,6 +1346,7 @@
     if (element.classList.contains('library-card')) return 'libraryItems';
     if (element.classList.contains('library-remove')) return 'libraryRemovals';
     if (element.classList.contains('account-input')) return 'accountInputs';
+    if (element.classList.contains('announcement-action')) return 'announcements';
     if (element.classList.contains('app-update-action')) return 'appUpdates';
     if (element.classList.contains('desktop-mini-titlebar-action')) return 'miniPlayerSettings';
     if (element.classList.contains('windows-playback-action')) return 'windowsPlayback';
@@ -1380,8 +1395,8 @@
     // focus-options overload.
     var previous = document.activeElement;
     if (typeof androidShell !== 'undefined' && androidShell &&
-        (!previous || previous === document.body || focusables().indexOf(previous) < 0) && remoteFocusTarget()) {
-      previous = remoteFocusTarget();
+        (!previous || previous === document.body || !isFocusTarget(previous))) {
+      previous = remoteFocusTarget() || previous;
     }
     if (previous && previous.tagName === 'INPUT' && element.tagName !== 'INPUT' && window.HongguoTVInput) window.HongguoTVInput.finishEditing();
     element.focus();
@@ -1426,10 +1441,10 @@
     if (['favorites', 'likes'].indexOf(pageMode()) >= 0) return firstVisible('.library-tab.is-active') || firstVisible('.library-tab');
     if (pageMode() === 'follows') return firstVisible('.follow-tab.is-active') || firstVisible('.follow-tab');
     var remembered = lastPageFocus[pageMode()];
-    if (remembered && focusables().indexOf(remembered) >= 0) return remembered;
+    if (isFocusTarget(remembered)) return remembered;
     if (pageMode() === 'search') return searchInput || document.querySelector('.search-submit');
     if (pageMode() === 'account') return firstVisible('#account-method-qr[aria-pressed="true"]') || firstVisible('#account-method-phone') || firstVisible('.account-input') || firstVisible('.account-action');
-    if (pageMode() === 'settings') return selectedSidebarDisplay() || selectedLocale() || firstVisible('.recommendation-direction-action[aria-pressed="true"]') || firstVisible('.recommendation-direction-action') || firstVisible('.auto-cinema-action') || firstVisible('.webos-audio-action') || firstVisible('.portrait-background-action[aria-pressed="true"]') || firstVisible('.portrait-background-action') || firstVisible('.danmaku-region-action[aria-pressed="true"]') || firstVisible('.danmaku-region-action') || firstVisible('.episode-prefetch-action[aria-pressed="true"]') || firstVisible('.episode-prefetch-action') || firstVisible('.playback-mode-action[aria-pressed="true"]') || firstVisible('.playback-mode-action') || firstVisible('.windows-playback-action[aria-pressed="true"]') || firstVisible('.windows-playback-action') || firstVisible('.desktop-mini-titlebar-action') || firstVisible('.app-update-action') || activeSidebar();
+    if (pageMode() === 'settings') return firstVisible('.announcement-action') || selectedSidebarDisplay() || selectedLocale() || firstVisible('.recommendation-direction-action[aria-pressed="true"]') || firstVisible('.recommendation-direction-action') || firstVisible('.auto-cinema-action') || firstVisible('.webos-audio-action') || firstVisible('.portrait-background-action[aria-pressed="true"]') || firstVisible('.portrait-background-action') || firstVisible('.danmaku-region-action[aria-pressed="true"]') || firstVisible('.danmaku-region-action') || firstVisible('.episode-prefetch-action[aria-pressed="true"]') || firstVisible('.episode-prefetch-action') || firstVisible('.playback-mode-action[aria-pressed="true"]') || firstVisible('.playback-mode-action') || firstVisible('.windows-playback-action[aria-pressed="true"]') || firstVisible('.windows-playback-action') || firstVisible('.desktop-mini-titlebar-action') || firstVisible('.app-update-action') || activeSidebar();
     if (pageMode() === 'support') return firstVisible('.support-card');
     if (pageMode() === 'apps') return firstVisible('.recommended-app-action') || activeSidebar();
     if (isLibraryPage()) return firstVisible('.library-card') || firstVisible('.history-filter.is-active') || firstVisible('[data-action="library-discover"]') || firstVisible('.library-toolbar-button');
@@ -1549,6 +1564,7 @@
     var items = focusables(zoneSelectors[zone]);
     var index = items.indexOf(current);
     if (index < 0) return items[0] || null;
+    if (zone === 'sidebar' && direction === 'up' && index === 0) return items[items.length - 1] || null;
     if (direction === 'up' || direction === 'left') index -= 1;
     if (direction === 'down' || direction === 'right') index += 1;
     return items[index] || null;
@@ -1945,7 +1961,7 @@
     }
     if (zone === 'sidebarDisplay') {
       if (direction === 'left' || direction === 'right') return moveWithinZone(zone, current, direction) || (direction === 'left' ? activeSidebar() : null);
-      if (direction === 'up') return activeSidebar();
+      if (direction === 'up') return firstVisible('.announcement-action') || activeSidebar();
       if (direction === 'down') return firstVisible('.startup-page-action[aria-pressed="true"]') || firstVisible('.startup-page-action') || firstVisible('.locale-action[aria-pressed="true"]') || firstVisible('.locale-action');
       return null;
     }
@@ -1971,6 +1987,12 @@
       if (direction === 'left' || direction === 'right') return moveWithinZone(zone, current, direction) || (direction === 'left' ? activeSidebar() : null);
       if (direction === 'up') return firstVisible('.desktop-mini-titlebar-action') || firstVisible('.windows-playback-action[aria-pressed="true"]') || firstVisible('.windows-playback-action') || firstVisible('.playback-mode-action[aria-pressed="true"]') || firstVisible('.playback-mode-action') || firstVisible('.episode-prefetch-action[aria-pressed="true"]') || firstVisible('.episode-prefetch-action') || firstVisible('.danmaku-size-action[aria-pressed="true"]') || firstVisible('.danmaku-size-action') || firstVisible('.danmaku-region-action[aria-pressed="true"]') || firstVisible('.danmaku-region-action') || firstVisible('.portrait-background-action[aria-pressed="true"]') || firstVisible('.portrait-background-action') || firstVisible('.webos-audio-action') || firstVisible('.auto-cinema-action') || firstVisible('.recommendation-direction-action[aria-pressed="true"]') || firstVisible('.recommendation-direction-action') || firstVisible('.locale-action[aria-pressed="true"]') || firstVisible('.locale-action') || selectedSidebarDisplay() || activeSidebar();
       if (direction === 'down') return firstVisible('.webos-update-notes');
+      return null;
+    }
+    if (zone === 'announcements') {
+      if (direction === 'left' || direction === 'right') return moveWithinZone(zone, current, direction) || (direction === 'left' ? activeSidebar() : null);
+      if (direction === 'up') return activeSidebar();
+      if (direction === 'down') return selectedSidebarDisplay() || activeSidebar();
       return null;
     }
     if (zone === 'miniPlayerSettings') {
@@ -2767,8 +2789,10 @@
     controlsManuallyHidden = false;
     // Hidden progress ticks skip painting the controls. Sync before revealing
     // them, without refreshing on every pointer move while already visible.
-    if (shell.classList.contains('is-controls-hidden')) updatePlaybackControls();
-    shell.classList.remove('is-controls-hidden');
+    if (shell.classList.contains('is-controls-hidden')) {
+      updatePlaybackControls();
+      shell.classList.remove('is-controls-hidden');
+    }
     scheduleControlsHide();
   }
   function hideControls() {
@@ -3634,6 +3658,8 @@
     var width = video.videoWidth || activePlayback && activePlayback.videoWidth || 0;
     var height = video.videoHeight || activePlayback && activePlayback.videoHeight || 0;
     return { available: available, title: item.title || '', episode: episode, portrait: height > width,
+      videoWidth: video.readyState >= 1 ? Number(video.videoWidth) || 0 : 0,
+      videoHeight: video.readyState >= 1 ? Number(video.videoHeight) || 0 : 0,
       previousEpisode: available && episode > 1, nextEpisode: available && episode > 0 && (!total || episode < total),
       previousDrama: recommend && feedIndex > 0, nextDrama: recommend && (feedIndex + 1 < feedItems.length || feedPager.hasMore() || !!feedPager.error),
       canPlay: available && !!video.getAttribute('src'), paused: video.paused || video.ended,
@@ -8453,6 +8479,7 @@
       mainSurface.classList.add('has-workspace');
       settingsPage.classList.remove('is-hidden');
       appUpdates.refresh();
+      if (announcements) announcements.refresh();
     } else if (item.dataset.page === 'support') {
       mainSurface.classList.add('has-workspace');
       supportPage.classList.remove('is-hidden');
@@ -8473,8 +8500,8 @@
 
   if (desktopShell && window.HongguoDesktopUI && window.HongguoDesktopUI.createPointerFocus) {
     desktopPointerFocus = window.HongguoDesktopUI.createPointerFocus(window, {
-      selector: Object.keys(zoneSelectors).map(function (zone) { return zoneSelectors[zone]; }).join(','),
-      allowed: function (element) { return focusables().indexOf(element) >= 0; },
+      selector: focusSelector,
+      allowed: isFocusTarget,
       paint: paintFocus,
       focus: goFocus,
       hover: function (element) {
@@ -8499,7 +8526,7 @@
       var editingTarget = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
       // Search edit mode already blocks fallback keys; keep the last page
       // target so a delayed IME focus callback cannot disable suggestion nav.
-      if (target.id !== 'search-input') window.HongguoTVInput.setRemoteNavigationTarget(!editingTarget && focusables().indexOf(target) >= 0);
+      if (target.id !== 'search-input') window.HongguoTVInput.setRemoteNavigationTarget(!editingTarget && isFocusTarget(target));
       if (target.classList && target.classList.contains('search-suggestion')) searchSuggestionFocusedKey = target.dataset.suggestionKey || '';
       else searchSuggestionFocusedKey = '';
     }
@@ -9668,6 +9695,42 @@
   document.getElementById('update-qr-close').addEventListener('click', function () { closeUpdateQR(true); });
   document.getElementById('desktop-download-update').addEventListener('click', function () { if (desktopShell) window.HongguoTVUpdates.download(); });
   document.getElementById('desktop-open-update-folder').addEventListener('click', function () { if (desktopShell) window.HongguoTVUpdates.openFolder(); });
+  var announcements = window.HongguoAnnouncements ? window.HongguoAnnouncements.create({
+    platform: function () {
+      if (androidShell) return 'android';
+      if (webosShell) return 'webos';
+      if (desktopShell) {
+        var platform = String(window.HongguoDesktop && window.HongguoDesktop.platform || '').toLowerCase();
+        return platform.indexOf('linux') >= 0 ? 'linux' : 'desktop';
+      }
+      return 'browser';
+    },
+    version: function () {
+      try {
+        var status = window.HongguoTVUpdates && window.HongguoTVUpdates.getStatus ? JSON.parse(window.HongguoTVUpdates.getStatus()) : null;
+        return status && status.current_version || '';
+      } catch (ignored) { return ''; }
+    },
+    t: uiText,
+    checkUpdate: appUpdates.activate
+  }) : null;
+  window.setTimeout(function () { if (announcements) announcements.refresh(); }, 1200);
+  var hardwareHevcSettings = window.HongguoPlaybackSettings.createHardwareHevc({
+    bridge: window.HongguoNativePlayer,
+    render: function (data) {
+      var card = document.getElementById('hevc-playback-settings');
+      card.classList.toggle('is-hidden', !data.supported);
+      card.querySelectorAll('.hevc-hardware-action').forEach(function (button) {
+        var selected = button.getAttribute('data-mode') === data.mode;
+        button.classList.toggle('account-primary', selected);
+        button.setAttribute('aria-pressed', selected ? 'true' : 'false');
+      });
+      document.getElementById('hevc-decode-state').textContent = data.message || '';
+    }
+  });
+  document.querySelectorAll('.hevc-hardware-action').forEach(function (button) {
+    button.addEventListener('click', function () { hardwareHevcSettings.choose(button.getAttribute('data-mode')); });
+  });
   var playbackSettings = window.HongguoPlaybackSettings.create({
     bridge: window.HongguoNativePlayer,
     render: function (data) {

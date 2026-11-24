@@ -16,8 +16,8 @@ function fixture(native, options={}) {
     appendChild(n){this.children.push(n);n.parentElement=this;return n}
     insertBefore(n,old){this.children.unshift(n);n.parentElement=this}
     addEventListener(k,f){(this.listeners[k]||=[]).push(f)}
-    dispatch(k){for(const f of this.listeners[k]||[])f()}
-    click(){if(!this.disabled)this.dispatch('click')}
+    dispatch(k,event){for(const f of this.listeners[k]||[])f(event)}
+    click(){if(!this.disabled){this.dispatch('click',{detail:0});for(let p=this.parentElement;p;p=p.parentElement)p.dispatch('click',{detail:0})}}
     contains(n){return n===this||this.children.some(c=>c.contains(n))}
   }
   const hero=new Node(),group=new Node(),shell=new Node(),video={src:'unchanged.mp4',currentTime:19,paused:false,muted:true,volume:.6,playbackRate:1.5,listeners:{},addEventListener:Node.prototype.addEventListener};
@@ -44,6 +44,73 @@ test('enter/restore keeps video source, position, pause, mute, volume and speed 
   assert.equal(f.doc.documentElement.classList.contains('desktop-mini-player'),true);
   assert.equal(await f.mini.request(false),true);assert.deepEqual(f.video,before);assert.deepEqual(f.commands,[]);
   assert.deepEqual(f.changed.at(-1),[false,true]);
+});
+
+function aspectFixture(overrides={}) {
+  const calls=[],updates=[];let session=0;
+  const f=fixture(enabled=>({active:enabled}));
+  Object.assign(f.s,{portrait:false,videoWidth:1920,videoHeight:1080});
+  Object.assign(f.win.go.main.desktopApp,{
+    SetMiniPlayerWithAspect:(...args)=>{calls.push(args);return {active:true,aspect_session:++session,aspect_applied:!!args[3]};},
+    UpdateMiniPlayerAspect:(...args)=>{updates.push(args);return {active:true,aspect_session:session,aspect_applied:true};}
+  },overrides);
+  return Object.assign(f,{calls,updates});
+}
+const settled=()=>new Promise(resolve=>setImmediate(resolve));
+test('new shell receives real content dimensions, coalesces equal ratios and never reloads video',async()=>{
+  const f=aspectFixture(),before=Object.assign({},f.video);
+  await f.mini.request(true);assert.deepEqual(f.calls,[[true,false,false,1920,1080]]);
+  for(let i=0;i<12;i++)f.mini.render();await settled();assert.equal(f.updates.length,0);
+  Object.assign(f.s,{videoWidth:1280,videoHeight:720});f.mini.render();await settled();assert.equal(f.updates.length,0);
+  Object.assign(f.s,{videoWidth:1080,videoHeight:1924});f.video.listeners.loadedmetadata.forEach(fn=>fn());await settled();
+  assert.deepEqual(f.updates,[[1,1080,1924]]);
+  f.video.listeners.resize.forEach(fn=>fn());await settled();assert.equal(f.updates.length,1);
+  await f.mini.request(false);assert.deepEqual(f.video,before);assert.deepEqual(f.commands,[]);
+});
+test('unknown or invalid metadata retains the current size until actual dimensions arrive',async()=>{
+  const f=aspectFixture();f.s.videoWidth=0;f.s.videoHeight=0;await f.mini.request(true);
+  assert.deepEqual(f.calls[0].slice(3),[0,0]);
+  for(const [w,h] of [[0,1920],[Infinity,720],[-1,720],[50000,50000],[1,1920],[1.5,2]]) {
+    Object.assign(f.s,{videoWidth:w,videoHeight:h});f.mini.render();
+  }
+  await settled();assert.equal(f.updates.length,0);
+  Object.assign(f.s,{videoWidth:720,videoHeight:1280});f.mini.render();await settled();
+  assert.deepEqual(f.updates,[[1,720,1280]]);
+});
+test('metadata updates are single-flight and apply the latest orientation after a pending native call',async()=>{
+  let finish;const calls=[];
+  const f=aspectFixture({UpdateMiniPlayerAspect:(...args)=>{
+    calls.push(args);return calls.length===1?new Promise(resolve=>{finish=resolve}):{active:true,aspect_session:1,aspect_applied:true};
+  }});
+  await f.mini.request(true);
+  Object.assign(f.s,{videoWidth:720,videoHeight:1280});f.mini.render();await Promise.resolve();
+  Object.assign(f.s,{videoWidth:540,videoHeight:960});f.mini.render();
+  Object.assign(f.s,{videoWidth:1000,videoHeight:1000});f.mini.render();assert.equal(calls.length,1);
+  finish({active:true,aspect_session:1,aspect_applied:true});await settled();
+  assert.deepEqual(calls,[[1,720,1280],[1,1000,1000]]);
+});
+test('a late aspect response after exit/re-entry cannot restore old layout or emit an error',async()=>{
+  let finish;const f=aspectFixture({UpdateMiniPlayerAspect:()=>new Promise(resolve=>{finish=resolve})});
+  await f.mini.request(true);Object.assign(f.s,{videoWidth:720,videoHeight:1280});f.mini.render();await Promise.resolve();
+  await f.mini.request(false);await f.mini.request(true);
+  finish({active:false,aspect_session:1,aspect_fallback:true});await settled();
+  assert.equal(f.mini.isActive(),true);assert.equal(f.notices.length,0);assert.equal(f.calls.length,2);
+});
+test('native aspect failure retains usable mini playback and is not retried on every render',async()=>{
+  const f=aspectFixture({SetMiniPlayerWithAspect:()=>({active:true,aspect_session:1,aspect_fallback:true})});
+  await f.mini.request(true);assert.equal(f.mini.isActive(),true);assert.equal(f.notices.length,1);
+  for(let i=0;i<20;i++)f.mini.render();await settled();assert.equal(f.updates.length,0);
+  f.win.go.main.desktopApp.UpdateMiniPlayerAspect=()=>{throw Error('unsupported')};
+  Object.assign(f.s,{videoWidth:720,videoHeight:1280});f.mini.render();await settled();assert.equal(f.notices.length,2);
+  for(let i=0;i<20;i++)f.mini.render();await settled();assert.equal(f.notices.length,2);
+  await f.mini.request(false);assert.equal(f.mini.isActive(),false);
+});
+test('titlebar change reports an aspect failure once and retains normal mini controls',async()=>{
+  const f=aspectFixture();await f.mini.request(true);
+  f.win.go.main.desktopApp.SetMiniPlayerTitlebarHidden=()=>({active:true,titlebar_hidden:true,aspect_session:1,aspect_fallback:true});
+  await f.mini.chooseTitlebar(true);assert.equal(f.mini.isActive(),true);assert.equal(f.notices.length,1);
+  for(let i=0;i<20;i++)f.mini.render();await settled();assert.equal(f.updates.length,0);
+  await f.mini.request(false);assert.equal(f.mini.isActive(),false);
 });
 
 test('duplicate async requests and old native polls cannot restore a newly entered mini player',async()=>{
@@ -73,20 +140,53 @@ test('mini controls use shared commands and respect episode/recommendation bound
   assert.deepEqual(f.commands.slice(-2),[['seek',42],['volume',0]]);
 });
 
-test('controls auto-hide again after next episode playback resumes',async()=>{
-  const f=fixture();await f.mini.request(true);const overlay=f.hero.children[0];
-  assert.equal(f.fireTimer(2500),true);assert.equal(overlay.classList.contains('is-visible'),false);
-  f.s.paused=true;f.video.paused=true;f.video.listeners.pause.forEach(callback=>callback());
-  assert.equal(overlay.classList.contains('is-visible'),true);
-  f.s.episode=2;f.s.paused=false;f.video.paused=false;
+test('automatic episode transitions keep hidden controls hidden on every desktop platform',async()=>{
+  for(const platform of ['darwin','windows','linux']) {
+    const f=fixture(enabled=>({active:enabled}),{platform});await f.mini.request(true);const overlay=f.hero.children[0];
+    assert.equal(f.fireTimer(2500),true);assert.equal(overlay.classList.contains('is-visible'),false);
+    for(let episode=2;episode<=4;episode++) {
+      f.s.paused=true;f.video.paused=true;
+      for(const name of ['ended','pause','emptied','loadedmetadata']) {
+        f.video.listeners[name].forEach(callback=>callback());
+        assert.equal(overlay.classList.contains('is-visible'),false,platform+' '+name);
+      }
+      f.s.episode=episode;f.s.paused=false;f.video.paused=false;
+      f.video.listeners.playing.forEach(callback=>callback());f.mini.render();
+      assert.equal(overlay.classList.contains('is-visible'),false,platform+' resumed');
+      assert.equal([...f.timers.values()].some(timer=>timer.delay===2500),false);
+    }
+  }
+});
+
+test('buffering recovery and passive focus loss do not reopen the compact overlay',async()=>{
+  const f=fixture();await f.mini.request(true);const overlay=f.hero.children[0];f.fireTimer(2500);
   f.video.listeners.playing.forEach(callback=>callback());
-  assert.equal(overlay.classList.contains('is-visible'),true);
-  assert.equal(f.fireTimer(2500),true);assert.equal(overlay.classList.contains('is-visible'),false);
+  overlay.dispatch('focusout');f.fireTimer(0);
+  assert.equal(overlay.classList.contains('is-visible'),false);
+});
+
+test('pointer interaction reveals controls, pause holds them and resume rearms auto-hide',async()=>{
+  const f=fixture();await f.mini.request(true);const overlay=f.hero.children[0];f.fireTimer(2500);
+  f.hero.dispatch('click');assert.equal(overlay.classList.contains('is-visible'),true);
+  f.s.paused=true;f.video.paused=true;f.video.listeners.pause.forEach(callback=>callback());
+  assert.equal(f.fireTimer(2500),false);assert.equal(overlay.classList.contains('is-visible'),true);
+  f.s.paused=false;f.video.paused=false;f.video.listeners.playing.forEach(callback=>callback());
+  f.fireTimer(2500);assert.equal(overlay.classList.contains('is-visible'),false);
+  f.hero.dispatch('mousemove');assert.equal(overlay.classList.contains('is-visible'),true);
+});
+
+test('a retained slider focus can reveal hidden controls without moving focus or consuming native arrows',async()=>{
+  const f=fixture();await f.mini.request(true);const overlay=f.hero.children[0];f.fireTimer(2500);
+  f.doc.activeElement=f.find('mini-player-progress');let prevented=0;
+  assert.equal(f.mini.handleKey({preventDefault(){prevented++},stopPropagation(){}},'ArrowRight',()=>assert.fail('focus moved')),true);
+  assert.equal(prevented,0);assert.equal(overlay.classList.contains('is-visible'),true);
 });
 
 test('keyboard interaction still keeps mini controls visible after playback resumes',async()=>{
   const f=fixture();await f.mini.request(true);const overlay=f.hero.children[0];
   f.mini.handleKey({preventDefault(){},stopPropagation(){}},'ArrowRight',node=>{f.doc.activeElement=node});
+  // Enter's synthetic click bubbles through the hero, without becoming mouse input.
+  f.mini.handleKey({preventDefault(){},stopPropagation(){}},'Enter',()=>{});
   f.s.paused=false;f.video.paused=false;
   f.video.listeners.playing.forEach(callback=>callback());
   assert.equal(overlay.classList.contains('is-visible'),true);
@@ -107,11 +207,13 @@ test('keyboard navigation skips disabled controls; sliders keep native arrows an
 test('shared state permits mini mode while hidden, disables standalone drama navigation and guards background commands',()=>{
   const app=fs.readFileSync(require.resolve('../core/cmd/hongguotv/ui/app.js'),'utf8');
   const source=app.slice(app.indexOf('  function miniPlayerState()'),app.indexOf('  if (desktopShell) {\n    window.HongguoTV.miniPlayerState'));
-  const video={videoWidth:720,videoHeight:1280,currentTime:10,duration:99,volume:.5,getAttribute:()=>'/test.mp4'};
+  const video={readyState:1,videoWidth:720,videoHeight:1280,currentTime:10,duration:99,volume:.5,getAttribute:()=>'/test.mp4'};
   const c=vm.createContext({document:{getElementById:()=>video},activePlayback:{episode:2,item:{series_id:'a',title:'A',episode_count:3}},playbackRequest:null,
     feedItems:[],feedIndex:0,featuredItem:null,coreConnectionModalOpen:false,detailModalOpen:false,playerOptionsOpen:false,confirmOpen:false,discussionOpen:false,
     endRecommendations:null,isPlaybackPage:()=>true,pageMode:()=> 'player',playbackAudioHold:null,desktopShell:true,applicationInBackground:true,applicationHidden:()=>true});
   vm.runInContext(source,c);assert.equal(c.miniPlayerState().available,true);assert.equal(c.miniPlayerState().nextDrama,false);assert.equal(c.miniPlayerCommand('toggle'),false);
+  assert.equal(c.miniPlayerState().videoWidth,720);assert.equal(c.miniPlayerState().videoHeight,1280);
+  video.readyState=0;assert.equal(c.miniPlayerState().videoWidth,0);assert.equal(c.miniPlayerState().videoHeight,0);
 });
 
 test('titlebar is opt-in, persists, and only enables hiding for the requested small window',async()=>{

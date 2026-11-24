@@ -147,7 +147,7 @@
       // playback retries must start outside the shared agent's socket pool.
       if (headers && headers.Connection === 'close') options.agent = false;
       var request;
-      try { request = transport.request(options); } catch (error) { finish(error); return; }
+      try { request = transport.request(require('./upstream-tls')(options)); } catch (error) { finish(error); return; }
       if (signal) signal.addEventListener('abort', aborted);
       request.on('timeout', function () { request.destroy(fail('上游请求超时', undefined, 'UPSTREAM_TIMEOUT')); });
       request.on('error', function (error) { finish(error); });
@@ -419,6 +419,20 @@
     }
     if (!row || row.video_model == null) return null;
     var model = decodeModel(row.video_model);
+    return { code: 0, data: (function () { var out = {}; out[String(vid)] = { video_model: model }; return out; }()) };
+  }
+
+  // The v1.3.3 recovery must not accept a neighboring row or a direct model
+  // convenience shape. The identity was consumed by the failed v5 POST, so a
+  // wrong VID here must leave the original empty-response error intact.
+  function videoTabEnvelopeExact(vid, root) {
+    var data = asMap(root && root.data);
+    if (!data) return null;
+    var rows = asMap(data.video_model_data) || data;
+    var row = asMap(rows[String(vid)]);
+    if (!row || row.video_model == null) return null;
+    var model = decodeModel(row.video_model);
+    if (!model || typeof model !== 'object' || Array.isArray(model)) return null;
     return { code: 0, data: (function () { var out = {}; out[String(vid)] = { video_model: model }; return out; }()) };
   }
 
@@ -760,6 +774,27 @@
     if (!error || error.name === 'AbortError') return false;
     return freshPlaybackRetryable(error) || ['VIDEO_MODEL_NO_QUALITY', 'VIDEO_MODEL_MISSING', 'VIDEO_MODEL_INVALID_JSON'].indexOf(error.code) >= 0;
   }
+  function mobileVideoTabRecoveryOptions(vid, device, signal, report) {
+    var request = mobileV5.videoTabRecovery(String(vid), device, Date.now());
+    report({ stage: 'video_tab', code: 'VIDEO_TAB_REQUEST' });
+    var cookie = playbackCookieHeader(device.cookies);
+    var headers = Object.assign({}, request.headers);
+    if (cookie) headers.Cookie = cookie;
+    return requestBuffer(request.url, 'GET', headers, null, mobileV5.maxJSON, signal, 15000).then(function (response) {
+      report({ stage: 'video_tab', http_status: response.status, response_bytes: response.body.length, code: 'VIDEO_TAB_RESPONSE' });
+      if (response.status < 200 || response.status >= 300) throw fail('video_tab HTTP ' + response.status, response.status, 'VIDEO_TAB_HTTP', 'video_tab');
+      var text = response.body.toString('utf8');
+      if (!trim(text)) throw fail('video_tab 返回空响应', 502, 'VIDEO_TAB_EMPTY', 'video_tab');
+      var root;
+      try { root = parseExactJSON(text); } catch (error) { throw fail('video_tab 响应不是有效 JSON', 502, 'VIDEO_TAB_INVALID_JSON', 'video_tab'); }
+      var code = businessCode(root);
+      if (code && code !== '0') throw fail('video_tab 拒绝了播放请求（' + code + '）', 502, 'VIDEO_TAB_REJECTED', 'video_tab');
+      var envelope = videoTabEnvelopeExact(vid, root);
+      if (!envelope) throw fail('video_tab 未返回所选分集的视频数据', 502, 'VIDEO_MODEL_EMPTY', 'video_tab');
+      report({ stage: 'video_tab', code: 'VIDEO_TAB_JSON' });
+      return optionsFromEnvelope(vid, envelope, signal, 'video_tab', report);
+    });
+  }
   function mobileVideoOptions(vid, signal, retry) {
     var state = retry.identityState, diagnostic = {stage:'multi_video_model',code:'VIDEO_MODEL_REQUEST'};
     if (state.multiLegacyPending) { state.multiLegacyPending = false; return legacyVideoOptions(vid,signal,retry); }
@@ -773,9 +808,9 @@
       lastVideoModelDiagnostic = Object.assign({video_id:String(vid)},diagnostic);
       if (retry.onDiagnostic) retry.onDiagnostic(Object.assign({},diagnostic));
     }
-    function next(device,attempt) {
+    function next(device,attempt,originalEmpty) {
       if (current.signal.aborted || playbackIdentityClosed) throw preparationCancelled();
-      var contentType = retry.contentType || '1004', request = mobileV5.build(String(vid),contentType,device,Date.now());
+      var contentType = retry.contentType || '1004', request = mobileV5.build(String(vid),contentType,device,Date.now(),attempt === 2);
       return requestBuffer(request.url,'POST',request.headers,request.body,mobileV5.maxJSON,current.signal,8000).catch(function (error) {
         // requestBuffer's bounded-body rejection is generic. Classify it only
         // for this protocol, so malformed v5 data can use the retained sources.
@@ -784,23 +819,37 @@
       }).then(function (response) {
         report({attempt:attempt,http_status:response.status,response_bytes:response.body.length,code:'VIDEO_MODEL_RESPONSE'});
         if (response.status !== 200) throw fail('mobile video_model HTTP '+response.status,response.status,'VIDEO_MODEL_HTTP','multi_video_model');
-        if (!trim(response.body.toString('utf8'))) throw fail('mobile video_model 返回空响应',502,'VIDEO_MODEL_EMPTY','multi_video_model');
+        if (!trim(response.body.toString('utf8'))) {
+          var empty = fail('mobile video_model 返回空响应',502,'VIDEO_MODEL_EMPTY','multi_video_model');
+          empty.retryAfter = !!(response.headers && (response.headers['retry-after'] || response.headers['Retry-After']));
+          throw empty;
+        }
         var envelope;
         try { envelope = parseExactJSON(response.body.toString('utf8')); } catch (ignored) { throw fail('mobile video_model 响应无效',502,'VIDEO_MODEL_INVALID_JSON','multi_video_model'); }
         if (!envelope || typeof envelope !== 'object' || Array.isArray(envelope)) throw fail('mobile video_model 响应无效',502,'VIDEO_MODEL_INVALID_JSON','multi_video_model');
         return optionsFromEnvelope(vid,mobileV5.normalize(envelope,String(vid),contentType),current.signal,'multi_video_model',report);
       }).catch(function (error) {
         error.videoModel = Object.assign({},diagnostic);
-        if (attempt === 1 && error.code === 'VIDEO_MODEL_EMPTY' && diagnostic.http_status === 200 && !current.signal.aborted) {
-          return mobileV5Identity.refreshAfterEmpty(device,current.signal).then(function (fresh) { return next(fresh,2); });
+        if (current.signal.aborted || error && error.name === 'AbortError') throw preparationCancelled();
+        if (error.code === 'VIDEO_MODEL_EMPTY' && diagnostic.http_status === 200 && !error.retryAfter) {
+          // v7.7 retries V5 on the alternate host before the signed bodyless
+          // video_tab recovery. All three requests reuse this registration.
+          if (attempt === 1) return next(device, 2, error);
+          return mobileVideoTabRecoveryOptions(vid, device, current.signal, report).catch(function (recoveryError) {
+            if (current.signal.aborted || recoveryError && recoveryError.name === 'AbortError') throw preparationCancelled();
+            throw originalEmpty || error;
+          });
         }
-        throw error;
+        throw originalEmpty || error;
       });
     }
     return mobileV5Identity.get(current.signal).then(function (d) { return next(d,1); }).then(function (options) {
       finish(); state.multiLegacyPending = true; return options;
     },function (error) {
       finish(); if (signal && signal.aborted || playbackIdentityClosed) throw preparationCancelled();
+      // A recovery GET can fail with another HTTP status. Keep the V5
+      // failure that selected this fallback, so the legacy path stays usable.
+      if (error.videoModel) diagnostic = Object.assign({}, error.videoModel);
       if (error.code === 'ACCOUNT_DEVICE') diagnostic = {stage:'device_register'};
       report({code:error.code || 'VIDEO_MODEL_NETWORK',network_reason:networkDiagnostic(error)});
       error.videoModel = Object.assign({},diagnostic); state.lastError = error;
@@ -978,8 +1027,8 @@
   }
   function fileExists(file) { try { return fs.statSync(file).isFile(); } catch (ignored) { return false; } }
 
-  function downloadFile(target, destination, token) {
-    return rangeMedia.downloadFile(target, destination, { 'User-Agent': APP_UA }, MAX_MEDIA, function (size) { mediaCache.reserve(token, size); });
+  function downloadFile(target, destination, token, signal) {
+    return rangeMedia.downloadFile(target, destination, { 'User-Agent': APP_UA }, MAX_MEDIA, function (size) { mediaCache.reserve(token, size); }, { signal: signal });
   }
 
   function readU32(buffer, offset) { return buffer.readUInt32BE(offset); }
@@ -1127,6 +1176,7 @@
         function leave() {
           if (done) return false; done = true;
           if (signal) signal.removeEventListener('abort', aborted);
+          if (record.users === 1) clearTimeout(record.deadlineTimer);
           if (--record.users === 0 && (!record.settled || record.fullRecovery)) record.resolveCancel.abort('PLAYBACK_PREPARATION_CANCELLED');
           if (!prefetch && --record.foregroundUsers === 0 && (!record.settled || record.fullRecovery) && record.recoveryCancel) {
             record.recoveryCancel.abort('PLAYBACK_PREPARATION_CANCELLED');
@@ -1143,6 +1193,7 @@
         }
         function failed(error) {
           if (!leave()) return;
+          if (record.timedOut) error = fail('播放准备超时，请重试', 504, 'MEDIA_PREPARATION_TIMEOUT');
           if (!prefetch || !record.foreground) {
             record.report.media_preparation_error_stage = error.stage || record.report.media_preparation_stage;
             record.report.media_preparation_error_code = String(error.code || 'PROVIDER_ERROR');
@@ -1155,7 +1206,7 @@
           if (done) return;
           // Only an active foreground caller may start the existing full-file
           // fallback. Cancellation must not turn speculative work into a download.
-          if (!wantsRange || prefetch || !record.fullFallback || error.name === 'AbortError') { failed(error); return; }
+          if (!wantsRange || prefetch || !record.fullFallback || error.name === 'AbortError' || record.resolveCancel.signal.aborted) { failed(error); return; }
           Promise.resolve().then(function () {
             if (done) throw preparationCancelled();
             return record.fullFallback(error);
@@ -1176,6 +1227,9 @@
     var record = { users: 0, foregroundUsers: 0, speculative: !!prefetch, settled: false, resolveCancel: audioCancel.create(),
       identityState: { plan: sourceMemory.plan([seriesID, 'default', contentType, quality, String(!!fallback)].join('\x00')) },
       report: { media_mode: wantsRange ? 'range' : 'full', media_preparation_stage: 'resolve' } };
+    record.deadlineTimer = setTimeout(function () {
+      record.timedOut = true; record.resolveCancel.abort('PLAYBACK_PREPARATION_CANCELLED');
+    }, 45000);
     rememberPreparation(token, record.report);
     var resolveStartedAt = Date.now();
     function diagnostic(value) { record.report.media_video_model = value; }
@@ -1233,14 +1287,42 @@
           mediaCache.touch(fullToken, true);
           return Promise.resolve(withFallback({ path: '/minireel-proxy/media/' + fullToken + '.mp4', quality: selected.quality, qualities: qualities, vid: vid, mode: 'full' }));
         }
-        if (fullDownloads[fullToken]) return fullDownloads[fullToken].then(withFallback);
+        function joinDownload(shared) {
+          shared.users++;
+          var signal = record.resolveCancel.signal;
+          return new Promise(function (resolve, reject) {
+            var done = false;
+            function leave() {
+              if (done) return false; done = true;
+              signal.removeEventListener('abort', aborted);
+              if (--shared.users === 0 && !shared.settled) shared.cancel.abort('PLAYBACK_PREPARATION_CANCELLED');
+              return true;
+            }
+            function aborted() { if (leave()) reject(preparationCancelled()); }
+            signal.addEventListener('abort', aborted);
+            if (signal.aborted) { aborted(); return; }
+            shared.promise.then(function (result) { if (leave()) resolve(withFallback(result)); }, function (error) { if (leave()) reject(error); });
+          });
+        }
+        var existing = fullDownloads[fullToken];
+        if (existing) {
+          // An abandoned write must close before a retry reuses its path/lease.
+          if (existing.cancel.signal.aborted) return existing.promise.catch(function () {}).then(function () {
+            if (record.resolveCancel.signal.aborted) throw preparationCancelled();
+            return prepareFull(rangeError);
+          });
+          return joinDownload(existing);
+        }
+        var shared = { users: 0, settled: false, cancel: audioCancel.create() };
         var releaseDownload = mediaCache.protect(fullToken);
         var temp = fullFile + '.part';
         var download = measurePreparation(record.report, 'download', 'media_download_ms', function () {
           mediaCache.reserve(fullToken, 1);
           mkdirp(fullDir, 448);
-          return downloadFile(selected.url, temp, fullToken);
+          audioCancel.check(shared.cancel.signal);
+          return downloadFile(selected.url, temp, fullToken, shared.cancel.signal);
         }).then(function () {
+          audioCancel.check(shared.cancel.signal);
           return measurePreparation(record.report, 'decrypt', 'media_decrypt_ms', function () { if (selected.key) decryptMP4(temp, selected.key); });
         }).then(function () {
           fs.renameSync(temp, fullFile);
@@ -1255,16 +1337,19 @@
           throw error;
         });
         var sharedDownload = download.then(function (result) {
-          if (fullDownloads[fullToken] === sharedDownload) delete fullDownloads[fullToken];
+          shared.settled = true;
+          if (fullDownloads[fullToken] === shared) delete fullDownloads[fullToken];
           mediaCache.finishDownload(fullToken); releaseDownload(); mediaCache.prune(true);
           return result;
         }, function (error) {
-          if (fullDownloads[fullToken] === sharedDownload) delete fullDownloads[fullToken];
+          shared.settled = true;
+          if (fullDownloads[fullToken] === shared) delete fullDownloads[fullToken];
           mediaCache.finishDownload(fullToken); releaseDownload(); mediaCache.prune(true);
           throw error;
         });
-        fullDownloads[fullToken] = sharedDownload;
-        return sharedDownload.then(withFallback);
+        shared.promise = sharedDownload;
+        fullDownloads[fullToken] = shared;
+        return joinDownload(shared);
       }
       if (!wantsRange) return prepareFull(null).catch(recoverMedia);
       record.fullFallback = function (error) {
@@ -1276,8 +1361,9 @@
       };
       return measurePreparation(record.report, 'range_init', 'media_range_init_ms', function () {
         if (!selected.key) throw fail('当前视频没有 CENC key');
-        return rangeMedia.open(selected.url, selected.key, { vid: vid, quality: selected.quality });
+        return rangeMedia.open(selected.url, selected.key, { vid: vid, quality: selected.quality }, { signal: record.resolveCancel.signal });
       }).then(function (source) {
+        if (record.resolveCancel.signal.aborted) throw preparationCancelled();
         source.quality = selected.quality;
         source.refresh = function () {
           return videoOptions(vid, null, { contentType: contentType }).then(function (freshOptions) {
@@ -2224,6 +2310,7 @@
       playbackIdentityClosed = true; playbackIdentity.close(); registeredSingleIdentity.close(); mobileV5Identity.close();
       sourceMemory.clear();
       Object.keys(jobs).forEach(function (key) { jobs[key].resolveCancel.abort('PLAYBACK_PREPARATION_CANCELLED'); });
+      Object.keys(fullDownloads).forEach(function (key) { fullDownloads[key].cancel.abort('PLAYBACK_PREPARATION_CANCELLED'); });
       Object.keys(audioJobs).forEach(function (key) { audioJobs[key].cancel.abort(); });
       audioRange.close(); audioCache = [];
       if (typeof rangeMedia.clearHeadCache === 'function') rangeMedia.clearHeadCache();
