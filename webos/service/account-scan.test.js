@@ -55,8 +55,12 @@ test('webOS QR confirms, registers an independent app identity, persists and use
   assert(!registration.headers.Cookie, 'website credentials never accompany anonymous registration');
   var restore = createAccount({ dataDir: f.dir }); t.after(function () { restore.close(); });
   assert.equal(restore.status().logged_in, true); assert.equal(restore.status().login_method, 'qr');
-  assert.equal(fs.statSync(path.join(f.dir, 'account.json')).mode & 511, 384);
-  assert.equal(fs.statSync(f.dir).mode & 63, 0);
+  // Windows filesystems do not preserve POSIX mode bits; Node reports 0666
+  // even when the write requested 0600. CI verifies these bits on Linux.
+  if (process.platform !== 'win32') {
+    assert.equal(fs.statSync(path.join(f.dir, 'account.json')).mode & 511, 384);
+    assert.equal(fs.statSync(f.dir).mode & 63, 0);
+  }
   await account.reserve('12345', true);
   var write = f.calls.find(function (c) { return c.path === '/reading/bookapi/search/uncover_subscribe/v'; });
   assert(write.headers.Cookie.indexOf('sessionid=private-session') >= 0);

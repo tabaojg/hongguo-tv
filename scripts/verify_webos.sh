@@ -78,11 +78,15 @@ if (serviceJs.indexOf("require('./provider')") < 0) fail('service does not load 
 if (/127\.0\.0\.1:(?:8787|8797|57828)/.test(adapter + serviceJs)) fail('developer-only port leaked into webOS adapter/service');
 if (fs.existsSync(path.join(root, 'webos', 'service', 'number-input.test.js'))) require(path.join(root, 'webos', 'service', 'number-input.test.js'));
 if (fs.existsSync(path.join(root, 'webos', 'app', 'webos-adapter.test.js'))) require(path.join(root, 'webos', 'app', 'webos-adapter.test.js'));
-if (fs.existsSync(path.join(root, 'webos', 'service', 'service.test.js'))) require(path.join(root, 'webos', 'service', 'service.test.js'));
 console.log('webOS verify: PASS');
 console.log(JSON.stringify({ appId: app.id, version: app.version, serviceId: service.services[0].name, sharedUiAssets: scripts.length, playbackVerified: false }, null, 2));
 NODE
 
+# Run the service test as a separate process: it reports failures by setting
+# process.exitCode from an async continuation, which a require() inside the
+# inline verifier would swallow and still print PASS.
+"$node_bin" "$repo_dir/webos/service/service.test.js"
+"$node_bin" "$repo_dir/webos/service/announcements.test.js"
 "$node_bin" "$repo_dir/webos/service/passport-sign.test.js"
 "$node_bin" --test "$repo_dir/tests/webos-mobile-v5.test.cjs"
 "$node_bin" "$repo_dir/webos/service/provider.test.js"
@@ -97,8 +101,16 @@ NODE
 "$node_bin" "$repo_dir/webos/service/account.test.js"
 "$node_bin" --test "$repo_dir/webos/service/account-scan.test.js"
 "$node_bin" "$repo_dir/webos/service/service-entry.test.js"
-"$node_bin" --test "$repo_dir/tests/webos-legacy-runtime.test.cjs" "$repo_dir/tests/webos-upstream-tls.test.cjs"
+"$node_bin" --test "$repo_dir/tests/webos-legacy-runtime.test.cjs" "$repo_dir/tests/webos-upstream-tls.test.cjs" "$repo_dir/tests/webos-playback-repair.test.cjs"
 "$node_bin" --test "$repo_dir/tests/webos-single-player-prefetch.test.cjs" "$repo_dir/tests/webos-range-head-cache.test.cjs" "$repo_dir/tests/next-episode-transition.test.cjs"
+
+# Git Bash exposes TMPDIR as a drive-prefixed path; normalize it so mktemp and
+# cleanup use POSIX paths on Windows as well as on Linux CI.
+case "${TMPDIR:-}" in
+  [A-Za-z]:\\*)
+    if command -v cygpath >/dev/null 2>&1; then TMPDIR=$(cygpath -u "$TMPDIR"); fi
+    ;;
+esac
 
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/hongguo-webos-verify.XXXXXX")
 trap 'rm -rf "$tmp"' EXIT INT TERM
@@ -128,7 +140,7 @@ function verifyServiceFiles(directory) {
   });
 }
 verifyServiceFiles(path.join(root, 'service'));
-['runtime-compat.js', 'upstream-tls.js', 'certs/digicert-global-root-g2.pem'].forEach(function (file) {
+['runtime-compat.js', 'upstream-tls.js', 'certs/digicert-global-root-g2.pem', 'playback-repair.js', 'playback-rule-verifier.js', 'playback-rule-runtime.js', 'playback-rule-worker.js', 'playback-rule-network.js', 'playback-rule-trust.js', 'vendor/tweetnacl/nacl-fast.js', 'vendor/tweetnacl/LICENSE', 'vendor/bytes/browser-buffer.js', 'vendor/bytes/browser-buffer.LICENSE', 'vendor/bytes/base64-js.js', 'vendor/bytes/base64-js.LICENSE', 'vendor/bytes/ieee754.js', 'vendor/bytes/ieee754.LICENSE'].forEach(function (file) {
   if (!fs.readFileSync(path.join(root, 'service', file)).equals(fs.readFileSync(path.join(source, 'webos/service', file)))) throw new Error('legacy runtime asset missing or changed in staged service: ' + file);
 });
 var app = JSON.parse(fs.readFileSync(path.join(root, 'app', 'appinfo.json'), 'utf8'));

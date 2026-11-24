@@ -73,7 +73,7 @@ account.recommend = function (query) {
   return Promise.resolve({ items: [{ series_id: '45', title: '追更剧' }], channel: query.channel });
 };
 var numberInput = createNumberInput({ selectIP: function () { return '127.0.0.1'; }, ttl: 30000 });
-var service = createService({ service: luna, provider: provider, account: account, numberInput: numberInput, port: 0,
+var service = createService({ announcements: {active:function(){return Promise.resolve([]);}}, service: luna, provider: provider, account: account, numberInput: numberInput, port: 0,
   updates: { check: function () { updateChecks++; return Promise.resolve({ schema: 1, platform: 'webos', version_name: '0.2.118' }); } } });
 var registry = require('./services.json');
 
@@ -206,6 +206,11 @@ async function run() {
     assert.notStrictEqual(goResponse.status, 501, 'Go API route is implemented in webOS: ' + goRoute);
     assert.notStrictEqual(JSON.parse(goResponse.body).error, 'WEBOS_PROVIDER_NOT_IMPLEMENTED', 'Go API route is not a placeholder in webOS: ' + goRoute);
   }
+
+  var announcements = await request('GET', '/api/v1/announcements?platform=webos&version=0.2.181');
+  assert.strictEqual(announcements.status, 200);
+  assert.deepStrictEqual(JSON.parse(announcements.body).data.items, []);
+  assert.strictEqual((await request('POST', '/api/v1/announcements')).status, 405);
 
   var comments = await request('GET', '/api/v1/comments?series_id=1&vid=2');
   assert.strictEqual(comments.status, 200);

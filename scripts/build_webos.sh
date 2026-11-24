@@ -43,6 +43,14 @@ if [ -n "$stage_id_suffix" ] && ! printf '%s\n' "$stage_id_suffix" | grep -Eq '^
   exit 2
 fi
 
+# Git Bash exposes TMPDIR as a drive-prefixed path; normalize it so mktemp and
+# cleanup use POSIX paths on Windows as well as on Linux CI.
+case "${TMPDIR:-}" in
+  [A-Za-z]:\\*)
+    if command -v cygpath >/dev/null 2>&1; then TMPDIR=$(cygpath -u "$TMPDIR"); fi
+    ;;
+esac
+
 stage=$(mktemp -d "${TMPDIR:-/tmp}/hongguo-webos.XXXXXX")
 cleanup() { rm -rf "$stage"; }
 trap cleanup EXIT INT TERM
