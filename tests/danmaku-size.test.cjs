@@ -67,14 +67,21 @@ test('larger comments get wider lane spacing and only complete rows fit, includi
         assert.equal(layout.font,22*size/100);
         assert.equal(layout.step,Math.ceil(38*size/100));
         assert.ok(layout.count<=previous);previous=layout.count;
-        assert.ok(layout.count>=0&&layout.count<=(region==='half'?6:4));
+        assert.ok(layout.count>=0&&layout.count<=(region==='quarter'?2:region==='half'?6:4));
         if(layout.count)assert.ok((layout.count-1)*layout.step+Math.ceil(layout.font*1.6)<=height);
       }
     }
   }
   assert.equal(f.c.danmakuLaneLayout({clientHeight:0}).count,0);
   f.c.playbackPreferences.danmaku_size=100;
+  // Quarter region is capped at the top two rows even when the layer is tall.
+  f.c.playbackPreferences.danmaku_region='quarter';
+  assert.equal(f.c.danmakuLaneLayout({clientHeight:270}).count,2);
+  f.c.playbackPreferences.danmaku_region='current';
   assert.equal(f.c.danmakuLaneLayout({clientHeight:270}).count,4);
+  f.c.playbackPreferences.danmaku_region='half';
+  assert.equal(f.c.danmakuLaneLayout({clientHeight:270}).count,6);
+  f.c.playbackPreferences.danmaku_region='current';
   assert.equal(f.c.danmakuLaneLayout({clientHeight:270}).step,38);
 });
 

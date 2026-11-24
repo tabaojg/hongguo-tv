@@ -95,6 +95,10 @@
           <button class="channel-tab recommend-refresh" id="recommend-refresh" data-focus="recommend-refresh" aria-label="换一批推荐" data-i18n-aria-label="channel.refresh" data-i18n="channel.refresh">换一批</button>
         </div>
         <button type="button" class="top-status" id="core-status" tabindex="-1" aria-disabled="true" aria-haspopup="dialog" aria-controls="core-connection-modal"><svg class="status-icon" aria-hidden="true" focusable="false"><use href="#icon-connection" xlink:href="#icon-connection"></use></svg><span id="core-status-label">连接核心服务…</span></button>
+        <div id="player-hud" class="player-hud">
+          <span id="player-clock" class="player-clock is-hidden" aria-hidden="true"></span>
+          <span id="player-episode" class="player-episode is-hidden" aria-hidden="true"></span>
+        </div>
       </div>
 
       <section class="page-placeholder is-hidden" id="page-placeholder" aria-live="polite">
@@ -472,6 +476,7 @@
           <div class="app-update-actions"><button class="app-update-action account-action" id="app-check-update" data-focus="app-check-update" data-i18n="settings.checkUpdates">检查更新</button><button class="app-update-action account-action is-hidden" id="desktop-download-update" data-focus="desktop-download-update" data-i18n="ui.downloadZip">下载更新 ZIP</button><button class="app-update-action account-action is-hidden" id="desktop-open-update-folder" data-focus="desktop-open-update-folder" data-i18n="settings.openFolder">打开所在文件夹</button><button class="app-update-action account-action is-hidden" id="app-open-licenses" data-focus="app-open-licenses" data-i18n="settings.licenses">开源许可</button></div>
           <pre id="desktop-update-notes" class="desktop-update-notes is-hidden"></pre>
         </div>
+        <section id="update-qr-modal" class="search-scan-modal is-hidden" aria-hidden="true"><div class="search-scan-dialog" role="dialog" aria-modal="true" aria-labelledby="update-qr-title"><h2 id="update-qr-title" data-i18n="ui.updateQRTitle">扫码获取新版本</h2><p id="update-qr-version"></p><div class="search-scan-qr-box"><img id="update-qr-image" class="is-hidden" width="260" height="260" alt="更新发布页二维码" data-i18n-alt="ui.updateQRAlt"></div><p id="update-qr-hint" class="search-scan-hint" data-i18n="ui.updateQRHint">用手机扫描二维码，在浏览器中打开发布页下载安装</p><div class="search-scan-actions"><button id="update-qr-close" class="search-scan-action update-qr-action" data-focus="update-qr-close" data-i18n="ui.updateQRClose">返回</button></div></div></section>
       </section>
 
       <section id="recommended-apps-page" class="page-workspace recommended-apps-page is-hidden" aria-labelledby="recommended-apps-title">
@@ -713,6 +718,8 @@
   <script src="/watch-statistics.js"></script>
   <script src="/recommended-apps.js"></script>
   <script src="/windows-wasm-player.js"></script>
+  <script src="/player-clock.js"></script>
+  <script src="/update-qr.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>

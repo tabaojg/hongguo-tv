@@ -884,3 +884,125 @@ test('optional portrait capture is bound to the active native source and never s
   assert.equal(adapter.capturePortraitBackdrop(id,'5'),false);
   assert.equal(received.length,1);
 });
+
+test('standard Media3 software-decode fallback emits a one-shot page notice', () => {
+  const bridgeSource = fs.readFileSync(require.resolve('../android/app/src/main/java/rocks/aston/hongguotv/PlayerBridge.java'), 'utf8');
+  // The notice is tied to the exact moment a software decoder is confirmed for
+  // the HEVC retry, guarded so it fires at most once per session.
+  assert.match(bridgeSource, /softwareFallbackNotified/);
+  assert.match(bridgeSource, /if\(!current\.softwareFallbackNotified\)\{/);
+  assert.match(bridgeSource, /current\.softwareFallbackNotified=true;/);
+  assert.match(bridgeSource, /send\(current\.id,"software-fallback",null\)/);
+  const decoderBlock = bridgeSource.slice(
+    bridgeSource.indexOf('"video_decoder".equals(field)&&configuredTarget.forceSoftwareHevc'),
+    bridgeSource.indexOf('updateDiagnostic(current,"preparing")'));
+  assert.match(decoderBlock, /hevc_software_retry","initialized"/);
+  assert.match(decoderBlock, /software-fallback/);
+  // MPV edition must not be affected: it has its own decode-mode policy.
+  const mpvBridgeSource = fs.readFileSync(require.resolve('../android/app/src/mpv/java/rocks/aston/hongguotv/MpvPlayerBridge.java'), 'utf8');
+  assert.doesNotMatch(mpvBridgeSource, /software-fallback/);
+});
+
+test('native playback turns a software-fallback event into a page notice signal for the active source only', () => {
+  const f = fixture(), id = activateNative(f);
+  let signals = 0;
+  f.document.getElementById('hero-video').addEventListener('nativesoftwarefallback', function () { signals++; });
+  f.context.window.HongguoNativePlayback.event(id, 'software-fallback');
+  assert.equal(signals, 1, 'the active source signals the page once');
+  f.context.window.HongguoNativePlayback.event(id, 'software-fallback');
+  assert.equal(signals, 2, 'native only forwards what the bridge emits; one-shot lives in the bridge');
+  f.context.window.HongguoNativePlayback.event('stale-source', 'software-fallback');
+  assert.equal(signals, 2, 'a stale source cannot surface a notice');
+});
+
+test('app surfaces the software-fallback notice with a localized, auto-hiding message', () => {
+  assert.match(appSource, /addEventListener\('nativesoftwarefallback', function \(\) \{/);
+  const handler = appSource.slice(appSource.indexOf("addEventListener('nativesoftwarefallback'"));
+  const tail = handler.slice(0, handler.indexOf('});'));
+  assert.match(tail, /showNotice\(uiText\('ui\.softwareFallbackNotice', '硬解能力不足，已切换软解播放'\)\)/);
+  assert.match(tail, /if \(activePlayback\)/);
+  // showNotice self-hides; verify the timer still exists so the notice vanishes.
+  assert.match(appSource, /showNotice\.timer = setTimeout\(function \(\) \{ notice\.classList\.add\('is-hidden'\); \}, 3200\)/);
+  for (const locale of ['zh-CN', 'zh-TW', 'ja-JP']) {
+    const source = fs.readFileSync(require.resolve('../core/cmd/hongguotv/ui/locales/' + locale + '.js'), 'utf8');
+    assert.match(source, /'ui\.softwareFallbackNotice'|"ui\.softwareFallbackNotice"/, locale + ' must localize the notice');
+  }
+});
+
+// A same-series switch used to release Media3 (and its surface) before asking
+// for the next URL, then rebuild the player. That teardown/rebuild round trip
+// is what made the first moment of the next episode look like a pause.
+test('an armed episode swap keeps the live Media3 player and hands it the next source', async () => {
+  const f = fixture('media3'), video = f.document.getElementById('hero-video');
+  const adapter = f.context.window.HongguoNativePlaybackAdapter;
+  video.src = '/media/ep-1.mp4';
+  await video.play();
+  assert.equal(f.bridge.begins, 1, 'the first source still creates the native session');
+  assert.equal(adapter.retainPlayerForSwap(), true);
+  video.pause();
+  video.removeAttribute('src');
+  video.load();
+  video.src = '/media/ep-2.mp4';
+  video.load();
+  assert.equal(f.bridge.begins, 1, 'a declared swap must not release the running player');
+  await video.play();
+  assert.equal(f.bridge.begins, 1, 'the swap reuses the player instead of rebuilding it');
+  assert.equal(f.bridge.plays, 2);
+  assert.equal(f.bridge.lastPayload.source, 'http://127.0.0.1/media/ep-2.mp4');
+  assert.equal(f.bridge.lastPayload.start_position, 0, 'the next episode starts at its own beginning');
+});
+
+test('a source reset without a declared swap still releases the player', async () => {
+  const f = fixture('media3'), video = f.document.getElementById('hero-video');
+  video.src = '/media/ep-1.mp4';
+  await video.play();
+  video.pause();
+  video.removeAttribute('src');
+  video.load();
+  assert.equal(f.bridge.begins, 2, 'leaving playback must not keep a paused native session');
+});
+
+test('a swap that never delivers a source releases the player when the window closes', () => {
+  const f = fixture('media3'), video = f.document.getElementById('hero-video');
+  const adapter = f.context.window.HongguoNativePlaybackAdapter;
+  video.src = '/media/ep-1.mp4';
+  video.play();
+  const begins = f.bridge.begins;
+  adapter.retainPlayerForSwap();
+  video.pause();
+  video.removeAttribute('src');
+  video.load();
+  assert.equal(f.bridge.begins, begins, 'the player is held while the switch is pending');
+  f.clock.advance(5000);
+  assert.equal(f.bridge.begins, begins + 1, 'a stalled switch falls back to a real teardown');
+  assert.equal(adapter.releaseSwapRetention(), false, 'the window is already closed');
+});
+
+test('leaving playback releases a retained swap player immediately', () => {
+  const f = fixture('media3'), video = f.document.getElementById('hero-video');
+  const adapter = f.context.window.HongguoNativePlaybackAdapter;
+  video.src = '/media/ep-1.mp4';
+  video.play();
+  const begins = f.bridge.begins;
+  adapter.retainPlayerForSwap();
+  video.pause();
+  video.load();
+  assert.equal(f.bridge.begins, begins);
+  assert.equal(adapter.releaseSwapRetention(), true);
+  assert.equal(f.bridge.begins, begins + 1, 'the abandoned switch must not leave a paused surface behind');
+  assert.equal(adapter.releaseSwapRetention(), false);
+});
+
+test('only the primary Media3 engine retains the player across an episode swap', () => {
+  for (const engine of ['mpv', 'webview_media3']) {
+    const f = fixture(engine);
+    assert.equal(f.context.window.HongguoNativePlaybackAdapter.retainPlayerForSwap(), false, engine + ' keeps its own transition policy');
+  }
+});
+
+test('app declares the swap before an episode switch and cancels it when playback is left', () => {
+  assert.match(appSource,
+    /if \(sameSeries && nativeAtSwitch && switchAdapter && typeof switchAdapter\.retainPlayerForSwap === 'function'\) switchAdapter\.retainPlayerForSwap\(\);/);
+  assert.match(appSource,
+    /HongguoNativePlaybackAdapter\.releaseSwapRetention\(\);\n    \}\n    document\.getElementById\('hero-video'\)\.pause\(\);/);
+});

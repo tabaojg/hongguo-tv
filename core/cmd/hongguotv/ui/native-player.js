@@ -34,6 +34,15 @@
   var listeners = {};
   var sequence = 0;
   var loadId = 'hongguo-' + (++sequence);
+  // A same-series episode switch hands the next URL to the player that is
+  // already decoding. Releasing it first tears down MediaCodec and the audio
+  // track, and rebuilding them is what made the first moment of the next
+  // episode look like the remote's pause key had been pressed. The window is
+  // bounded: a switch that never delivers a new source falls back to a real
+  // teardown so a paused player cannot hold the surface.
+  var SWAP_RETAIN_MS = 5000;
+  var swapRetainUntil = 0;
+  var swapRetainTimer = null;
   // Diagnostic identity is independent of callback IDs, which restart when
   // the page reloads. Never match a persisted snapshot from an earlier page.
   var diagnosticPage = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 12);
@@ -124,6 +133,32 @@
   if (primaryNative) { usingNative = true; document.documentElement.classList.add('native-playback'); }
 
   function isNative() { return nativeEnabled && usingNative; }
+  // True only while an episode switch is being staged on the live player. The
+  // old item must already be paused, otherwise a plain source replacement
+  // would leave the previous episode running under the new page state.
+  function retainSwapPlayer() {
+    return !!(swapRetainUntil && now() < swapRetainUntil && primaryMedia3 && isNative() && state.paused);
+  }
+  function endSwapRetain() {
+    swapRetainUntil = 0;
+    if (swapRetainTimer !== null) { clearTimeout(swapRetainTimer); swapRetainTimer = null; }
+  }
+  function armSwapWatchdog() {
+    if (swapRetainTimer !== null) clearTimeout(swapRetainTimer);
+    swapRetainTimer = setTimeout(function () {
+      swapRetainTimer = null;
+      if (!swapRetainUntil) return;
+      // No play() arrived inside the window: release exactly as the retired
+      // path did, so a stalled switch cannot leave a paused player on screen.
+      endSwapRetain();
+      if (!isNative()) return;
+      loadId = 'hongguo-' + (++sequence);
+      nativeRequested = false;
+      nativeDiagnosticId = '';
+      try { bridge.begin(loadId); } catch (ignoredBegin) {}
+      dispatch('emptied');
+    }, SWAP_RETAIN_MS);
+  }
   function domHasFrame() {
     return Number(domVideo.videoWidth) > 0 && Number(domVideo.videoHeight) > 0 && Number(domVideo.readyState) >= 2;
   }
@@ -294,7 +329,8 @@
     nativeDiagnosticId = diagnosticPage + '-' + loadId;
     var payload = JSON.stringify({ source: localSource(state.source), start_position: state.currentTime || 0,
       paused: false, speed: state.playbackRate || 1, diagnostic_id: nativeDiagnosticId });
-    try { nativeRequested = true; bridge.play(loadId, payload); } catch (error) { nativeRequested = false; dispatch('error', error); }
+    try { nativeRequested = true; bridge.play(loadId, payload); endSwapRetain(); }
+    catch (error) { nativeRequested = false; endSwapRetain(); dispatch('error', error); }
   }
   function startNativeFallback(force, reason) {
     if (!nativeEnabled || usingNative || nativeAttempted || !state.source || !force && state.paused) return false;
@@ -336,6 +372,7 @@
     if (fixedNative) return;
     if (!isNative()) return;
     clearFallbackTimer();
+    endSwapRetain();
     try { if (bridge.stop) bridge.stop(); } catch (ignoredStop) {}
     clearMedia3Preference();
     var source = state.source;
@@ -390,6 +427,8 @@
     nativeRequested = false;
     nativeDiagnosticId = '';
     loadId = 'hongguo-' + (++sequence);
+    var retainPlayer = retainSwapPlayer();
+    if (retainPlayer) armSwapWatchdog();
     if (isNative() && !primaryMedia3) {
       clearFallbackTimer();
       try {
@@ -410,7 +449,9 @@
     }
     if (primaryMedia3) {
       clearFallbackTimer();
-      try { if (next && bridge.begin) bridge.begin(loadId); } catch (ignoredBegin) {}
+      // During an episode switch the live ExoPlayer (and its surface) is kept;
+      // bridge.play() swaps the media item on it instead of rebuilding it.
+      if (!retainPlayer) { try { if (next && bridge.begin) bridge.begin(loadId); } catch (ignoredBegin) {} }
       usingNative = true;
       document.documentElement.classList.add('native-playback');
     }
@@ -448,13 +489,15 @@
     dispatchEvent: function (event) { if (event && event.type) dispatch(event.type, event); return true; },
     load: function () {
       if (!isNative()) { clearFallbackTimer(); domVideo.load(); return; }
+      var retainPlayer = retainSwapPlayer();
+      if (retainPlayer) armSwapWatchdog();
       loadId = 'hongguo-' + (++sequence);
       nativeRequested = false;
       nativeDiagnosticId = '';
       proxy.error = null;
       state.currentTime = state.startPosition; state.duration = NaN; state.paused = true; state.ended = false; state.seeking = false;
       state.readyState = 0; state.videoWidth = 0; state.videoHeight = 0; state.seekPending = false; state.started = false;
-      try { bridge.begin(loadId); } catch (ignored) {}
+      if (!retainPlayer) { try { bridge.begin(loadId); } catch (ignored) {} }
       dispatch('emptied');
     },
     play: function () {
@@ -519,6 +562,9 @@
       detail = detail || {};
       if (name === 'buffering' || name === 'waiting') { state.readyState = 1; state.seeking = false; dispatch('waiting', detail); return; }
       if (name === 'outputstate') { dispatch('nativeoutputstate', { type: 'nativeoutputstate', coreIdle: detail.core_idle }); return; }
+      // standard/Media3 reports once when hardware decode failed and fell back
+      // to a software decoder; surface it as a short, auto-hiding notice.
+      if (name === 'software-fallback') { dispatch('nativesoftwarefallback', { type: 'nativesoftwarefallback' }); return; }
       if (name === 'frame') {
         state.readyState = 3; state.videoWidth = Number(detail.width) || 0; state.videoHeight = Number(detail.height) || 0;
         if (primaryMedia3 || !fixedNative && attempt.switched) {
@@ -544,6 +590,7 @@
       if (name === 'ended') { state.ended = true; state.paused = true; state.seeking = false; notifyPlaybackActive(false); dispatch('ended', detail); return; }
       if (name === 'error') {
         notifyPlaybackActive(false);
+        endSwapRetain();
         if (fixedNative) {
           state.paused = true; state.started = false; state.readyState = 0;
           nativeRequested = false;
@@ -652,7 +699,28 @@
       if (isNative()) state.currentTime = state.startPosition;
     },
     syncBounds: syncBounds,
-    enableNative: function () { return startNativeFallback(true); }
+    enableNative: function () { return startNativeFallback(true); },
+    // Declared just before an intra-series episode switch: the next source is
+    // staged on the player that is already running instead of releasing it.
+    retainPlayerForSwap: function () {
+      if (!primaryMedia3 || !isNative()) return false;
+      swapRetainUntil = now() + SWAP_RETAIN_MS;
+      return true;
+    },
+    // The switch was abandoned (left the player, failed preparation): release
+    // the retained player and hide its surface, as a normal reset would.
+    releaseSwapRetention: function () {
+      var pending = swapRetainUntil;
+      endSwapRetain();
+      if (!pending || !isNative()) return false;
+      loadId = 'hongguo-' + (++sequence);
+      nativeRequested = false;
+      nativeDiagnosticId = '';
+      state.paused = true;
+      try { bridge.begin(loadId); } catch (ignoredBegin) {}
+      dispatch('emptied');
+      return true;
+    }
   };
   // app.js intentionally keeps its established DOM lookup contract. Redirect
   // only this media element so existing focus, history and test seams remain

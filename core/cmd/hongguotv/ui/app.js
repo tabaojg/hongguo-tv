@@ -61,6 +61,7 @@
     accountKeypad: '.account-keypad-key',
     accountActions: '.account-action',
     appUpdates: '.app-update-action',
+    updateQR: '.update-qr-action',
     announcements: '.announcement-action',
     recommendedApps: '.recommended-app-action',
     webosUpdateNotes: '.webos-update-notes',
@@ -225,6 +226,8 @@
   var danmakuScanOpen = false;
   var searchScanReturnFocus = null;
   var danmakuScanReturnFocus = null;
+  var updateQROpen = false;
+  var updateQRReturnFocus = null;
   var searchHistory;
   var searchDiscovery;
   var searchDiscoveryData = { guesses: [], boards: [] };
@@ -501,6 +504,56 @@
   var portraitBackdrop = null;
   var endRecommendationIndex = 0, endRecommendationAnimation = 0, endRecommendationReadyCleanup = null;
   var nextSeasonHint = typeof HongguoNextSeasonHint !== 'undefined' ? HongguoNextSeasonHint.create({ show: showNextSeasonHint, hide: hideNextSeasonHint }) : null;
+  var playerClockNode = document.getElementById('player-clock');
+  var playerEpisodeNode = document.getElementById('player-episode');
+  // The WebView's own Date reads the device system clock directly, with no
+  // JavaScriptInterface bridge crossing into the video-rendering main thread.
+  // Only hours/minutes are shown, so a 30s refresh keeps the display current.
+  var playerClock = typeof HongguoPlayerClock !== 'undefined' && playerClockNode
+    ? HongguoPlayerClock.mount(playerClockNode, {
+        now: HongguoPlayerClock.localNow,
+        tickMs: 30000,
+        label: function (now) { return HongguoPlayerClock.formatLabel(now); }
+      })
+    : null;
+  // Display-only current/total episode badge below the clock. It reads plain
+  // in-memory playback data once when the HUD is shown: no bridge, no timer,
+  // no key handling, no jump-to-episode. Unknown values degrade to "1/--".
+  function updatePlayerEpisodeBadge() {
+    if (!playerEpisodeNode) return;
+    var request = playbackRequest;
+    var item = activePlayback && activePlayback.item || feedItems[feedIndex] || featuredItem;
+    var current = activePlayback && Number(activePlayback.episode) ||
+      request && request.index === feedIndex && Number(request.episode) ||
+      item && Number(item.start_episode) || 0;
+    var total = Number(item && item.episode_count) || 0;
+    var shown = current > 0 ? current : 1;
+    playerEpisodeNode.textContent = shown + '/' + (total > 0 ? total : '--');
+  }
+  function showPlayerClock() {
+    if (!playerClock || !playerClockNode) return;
+    playerClockNode.classList.remove('is-hidden');
+    playerClockNode.removeAttribute('aria-hidden');
+    if (playerEpisodeNode) {
+      playerEpisodeNode.classList.remove('is-hidden');
+      playerEpisodeNode.removeAttribute('aria-hidden');
+    }
+    shell.classList.add('is-clock-shown');
+    updatePlayerEpisodeBadge();
+    playerClock.update();
+    playerClock.start();
+  }
+  function hidePlayerClock() {
+    if (!playerClock || !playerClockNode) return;
+    playerClock.stop();
+    playerClockNode.classList.add('is-hidden');
+    playerClockNode.setAttribute('aria-hidden', 'true');
+    if (playerEpisodeNode) {
+      playerEpisodeNode.classList.add('is-hidden');
+      playerEpisodeNode.setAttribute('aria-hidden', 'true');
+    }
+    shell.classList.remove('is-clock-shown');
+  }
   var endRecommendations = HongguoEndRecommendations.create({
     isCurrent: function (playback) {
       return !!(playback && activePlayback === playback && playback.owner === accountEpoch && playback.generation === feedGeneration &&
@@ -929,7 +982,8 @@
     // existing 38px lane spacing without measuring every emitted comment.
     var occupied = Math.ceil(font * 1.6);
     var step = Math.ceil(38 * font / 22);
-    var maximum = playbackPreferences.danmaku_region === 'half' ? 6 : 4;
+    // Quarter region keeps only the top two rows; half stays at six, default at four.
+    var maximum = playbackPreferences.danmaku_region === 'quarter' ? 2 : playbackPreferences.danmaku_region === 'half' ? 6 : 4;
     var lanes = Math.max(0, Math.min(maximum, Math.floor((height - occupied) / step) + 1));
     return { count: lanes, step: step, font: font };
   }
@@ -1232,6 +1286,7 @@
     if (element.id === 'core-connection-scroll' || element.classList.contains('core-connection-action')) return 'coreConnection';
     if (element.id === 'core-status') return 'channels';
     if (element.classList.contains('end-recommendation-card') || element.id === 'end-recommendations-close') return 'endRecommendations';
+    if (element.classList.contains('update-qr-action')) return 'updateQR';
     if (element.classList.contains('search-scan-action')) return 'searchScan';
     if (element.classList.contains('search-history-action')) return 'searchHistory';
     if (element.classList.contains('search-guess')) return 'searchGuesses';
@@ -1623,6 +1678,7 @@
 
   function moveFrom(current, direction) {
     if (coreConnectionModalOpen) return moveCoreConnectionFocus(current, direction);
+    if (typeof updateQROpen !== 'undefined' && updateQROpen) return null; // single close button; no navigation needed
     if (scanModalOpen()) return direction === 'left' || direction === 'right' ? moveWithinZone('searchScan', current, direction) : null;
     if (typeof accountCountryModalOpen !== 'undefined' && accountCountryModalOpen) {
       if (current.id === 'account-country-close') return direction === 'down' ? document.querySelector('.account-country-item.is-selected') || firstVisible('.account-country-item') : null;
@@ -3460,6 +3516,7 @@
   function handleBack() {
     var current = typeof androidShell !== 'undefined' && androidShell ? remoteFocusTarget() || document.activeElement : document.activeElement;
     if (coreConnectionModalOpen) { closeCoreConnectionModal(true); return true; }
+    if (typeof updateQROpen !== 'undefined' && updateQROpen) { closeUpdateQR(true); return true; }
     if (autoCinemaCandidate) cancelPendingAutoCinema();
     if (endRecommendations && endRecommendations.close(true)) return true;
     if (searchSuggestionOpen) { closeSearchSuggestions(true); return true; }
@@ -3547,6 +3604,7 @@
     flushNotificationPopup();
   }
   function resetPlayerUI() {
+    if (typeof hidePlayerClock === 'function') hidePlayerClock();
     cancelPendingAutoCinema();
     resetEndRecommendations();
     episodePrefetch.cancel(); cancelPlaybackPreparation();
@@ -3561,7 +3619,7 @@
   }
   function canShowAppUpdate() {
     var current = document.activeElement;
-    return !applicationInBackground && !applicationHidden() && pageMode() !== 'apps' && !isPlaybackPage() && !supportModalOpen && !detailModalOpen && !(typeof actorWorksOpen !== 'undefined' && actorWorksOpen) && !discussionOpen && !confirmOpen && !playerOptionsOpen && !accountBusy && !accountKeypadOpen() && !(current && /INPUT|TEXTAREA/.test(current.tagName));
+    return !applicationInBackground && !applicationHidden() && pageMode() !== 'apps' && !isPlaybackPage() && !supportModalOpen && !detailModalOpen && !(typeof updateQROpen !== 'undefined' && updateQROpen) && !(typeof actorWorksOpen !== 'undefined' && actorWorksOpen) && !discussionOpen && !confirmOpen && !playerOptionsOpen && !accountBusy && !accountKeypadOpen() && !(current && /INPUT|TEXTAREA/.test(current.tagName));
   }
   // Old native IME callbacks are irrelevant to the app-owned numeric keypad.
   function openHomeProgram(program) {
@@ -5267,6 +5325,24 @@
       });
     }
   }
+  // Warm the next episode's cover as soon as the current source is attached,
+  // instead of waiting for the timed media prefetch (5s stable playback) and
+  // its peek. This decoded preview is what covers the black transition surface
+  // when the viewer switches episode early; without it the switch flashes pure
+  // black. engagement.prewarm caches/dedupes, so a later prefetch-driven warm
+  // is harmless. It never flashes wrong artwork: prewarmEpisodeCover only
+  // accepts a VID that is exactly the next entry of the current series.
+  function warmNextEpisodeCover(playback) {
+    if (!playback || typeof engagement === 'undefined' || !engagement || !playback.item || !playback.item.vid_list) return;
+    var nextVid = playback.item.vid_list[playback.episode];
+    if (nextVid === undefined || nextVid === null || String(nextVid).trim() === '' || String(nextVid) === '0') return;
+    var target = { series_id: playback.item.series_id, vid: String(nextVid), episode: playback.episode + 1 };
+    engagement.prewarm(target).then(function (data) {
+      if (!data || activePlayback !== playback || playback.generation !== feedGeneration ||
+          playback.owner !== accountEpoch || applicationInBackground || applicationHidden()) return;
+      prewarmEpisodeCover(target, data, playback);
+    });
+  }
   function cancelFullEpisodePrefetchForPlayback(playback) {
     var video = document.getElementById('hero-video');
     if (!playback || !playback.started || playback.ended || playback.completed || video.ended ||
@@ -5333,6 +5409,12 @@
       if (activePlayback.generation !== feedGeneration ||
           activePlayback.owner !== owner || activePlayback.item.series_id !== target.series_id) return false;
       if (activePlayback.vid === target.vid) return true;
+      // A cover for the immediately following episode can be warmed as soon as
+      // the current detail (with vid_list) is attached, without waiting for the
+      // timed media prefetch. Accept it only when the VID is exactly the next
+      // entry in the current series, so stale/wrong artwork is never decoded.
+      var nextVid = activePlayback.item && activePlayback.item.vid_list && activePlayback.item.vid_list[activePlayback.episode];
+      if (nextVid && String(nextVid) === target.vid) return true;
       var prepared = typeof episodePrefetch.peek === 'function' ? episodePrefetch.peek() : null;
       return !!(prepared && prepared.info && prepared.target && prepared.info.generation === activePlayback.generation &&
         prepared.info.owner === owner && prepared.target.series_id === target.series_id && prepared.target.vid === target.vid);
@@ -5670,6 +5752,7 @@
     clearRangeStallTimer();
     presentation.waiting = false;
     playback.started = true;
+    if (typeof showPlayerClock === 'function') showPlayerClock();
     playback.stableSince = Date.now();
     if (playback.autoRecommendation && !playback.autoRecommendationRecorded && playback.item && playback.item.series_id) {
       playback.autoRecommendationRecorded = true;
@@ -5809,6 +5892,12 @@
         playbackRequest.owner === accountEpoch && playbackRequest.generation === feedGeneration &&
         document.getElementById('hero').classList.contains('is-preparing-video')));
     var transitionKind = sameDrama ? 'episode' : activePlayback ? 'series' : 'initial';
+    // Same-series switch on a native engine: keep the live ExoPlayer instead of
+    // releasing it. Releasing tears down MediaCodec and the audio track, and
+    // rebuilding them is what made the first moment of the next episode look
+    // like the remote's pause key had been pressed.
+    var switchAdapter = typeof window !== 'undefined' ? window.HongguoNativePlaybackAdapter : null;
+    if (sameSeries && nativeAtSwitch && switchAdapter && typeof switchAdapter.retainPlayerForSwap === 'function') switchAdapter.retainPlayerForSwap();
     var fastContinuation = !!(continuation && continuation.completed && canContinuePlayback(continuation) &&
       continuation.owner === accountEpoch && continuation.item.series_id === item.series_id &&
       forcedEpisode === continuation.episode + 1 && forcedPosition === 0 && libraryLoaded);
@@ -6018,6 +6107,10 @@
           setPlayerStatus(episodeLoadingText(activePlayback.episode));
           if (!applicationHidden() && !applicationInBackground) playMedia(video).catch(function () { setPlayerStatus(''); revealControls(); showNotice(uiText('content.videoReadyConfirm', '视频已准备好，请按确认键开始播放')); });
           else { setPlayerStatus(''); revealControls(); }
+          // Warm the next episode's cover now that detail (with vid_list) is
+          // available, so an early episode switch still has artwork to cover
+          // the black transition instead of flashing pure black.
+          if (typeof warmNextEpisodeCover === 'function') warmNextEpisodeCover(activePlayback);
         }
         if (!keepRangeFrame) { attachPreparedSource(); return; }
         // Cover the source replacement before it reaches Android's video
@@ -6036,6 +6129,9 @@
         playbackInfoRequest = null; playbackPrefetchHandoff = null;
         if (recoverPlaybackPreparation(activePlayback, error, generation)) return;
         if (error.name !== 'AbortError') {
+          // Preparation truly failed: drop the retained player so the reset
+          // below releases it instead of leaving a paused surface behind.
+          if (switchAdapter && typeof switchAdapter.releaseSwapRetention === 'function') switchAdapter.releaseSwapRetention();
           clearRangeTransitionHint();
           hero.classList.remove('is-range-transition');
           video.classList.remove('has-source');
@@ -7689,6 +7785,38 @@
     goFocus(document.getElementById('confirm-cancel'));
   }
 
+  function closeUpdateQR(restore) {
+    if (!updateQROpen) return;
+    updateQROpen = false;
+    var modal = document.getElementById('update-qr-modal');
+    modal.classList.add('is-hidden');
+    modal.setAttribute('aria-hidden', 'true');
+    var image = document.getElementById('update-qr-image');
+    image.classList.add('is-hidden');
+    image.removeAttribute('src');
+    var target = updateQRReturnFocus; updateQRReturnFocus = null;
+    if (restore && target && focusables().indexOf(target) >= 0) goFocus(target);
+  }
+
+  function openUpdateQR(releaseUrl, version) {
+    if (updateQROpen || !releaseUrl) return false;
+    var generator = window.HongguoUpdateQR;
+    if (!generator || typeof generator.toSVG !== 'function') return false;
+    var svg = generator.toSVG(releaseUrl, 260);
+    if (!svg) return false;
+    var image = document.getElementById('update-qr-image');
+    image.src = svg;
+    image.classList.remove('is-hidden');
+    document.getElementById('update-qr-version').textContent = version ? uiText('ui.updateQRVersion', '新版本 {version}', { version: version }) : '';
+    updateQRReturnFocus = document.activeElement;
+    updateQROpen = true;
+    var modal = document.getElementById('update-qr-modal');
+    modal.classList.remove('is-hidden');
+    modal.setAttribute('aria-hidden', 'false');
+    goFocus(document.getElementById('update-qr-close'));
+    return true;
+  }
+
   function closeSearchScan(restore) {
     searchScanOpen = false;
     searchScanReusable = false;
@@ -7754,6 +7882,12 @@
     episodePrefetch.cancel(); cancelPlaybackPreparation();
     saveProgress(true); activePlayback = null; ++feedGeneration;
     if (typeof syncNativePlaybackPageState === 'function') syncNativePlaybackPageState();
+    // Leaving playback: a retained switch player must be released here, not
+    // left paused behind the catalog with its surface still on screen.
+    if (typeof window !== 'undefined' && window.HongguoNativePlaybackAdapter &&
+        typeof window.HongguoNativePlaybackAdapter.releaseSwapRetention === 'function') {
+      window.HongguoNativePlaybackAdapter.releaseSwapRetention();
+    }
     document.getElementById('hero-video').pause();
     releasePlaybackAudio();
     document.getElementById('hero-video').removeAttribute('src');
@@ -8402,6 +8536,7 @@
       scrollEndRecommendationIntoView(event.target);
     } else setTimeout(flushEndRecommendations, 0);
     if (typeof playbackCommandMenuOpen !== 'undefined' && playbackCommandMenuOpen && !event.target.closest('#playback-command-menu')) { goFocus(firstVisible('.playback-command-action')); return; }
+    if (updateQROpen && !event.target.closest('#update-qr-modal')) { goFocus(document.getElementById('update-qr-close')); return; }
     if (scanModalOpen() && !event.target.closest('#search-scan-modal')) { goFocus(document.getElementById('search-scan-close')); return; }
     if (accountCountryModalOpen && !event.target.closest('#account-country-modal')) { goFocus(document.querySelector('.account-country-item.is-selected') || document.getElementById('account-country-close')); return; }
     if (typeof actorWorksOpen !== 'undefined' && actorWorksOpen && !event.target.closest('#actor-works-modal')) { goFocus(document.getElementById('actor-works-close')); return; }
@@ -9056,6 +9191,10 @@
     activePlayback.presentation.nativeCoreIdle = event.coreIdle;
     finishPlaybackPreparation(activePlayback);
   });
+  media.addEventListener('nativesoftwarefallback', function () {
+    // Only meaningful while a playback session is live; the notice hides itself.
+    if (activePlayback) showNotice(uiText('ui.softwareFallbackNotice', '硬解能力不足，已切换软解播放'));
+  });
   function checkPlaybackData() {
     if (!activePlayback) return;
     var presentation = activePlayback.presentation;
@@ -9484,9 +9623,26 @@
   if (window.HongguoI18n) window.HongguoI18n.onChange(function () { recommendedApps.refresh(); });
   window.addEventListener('pagehide', function () { recommendedApps.destroy(); });
 
+  // Android shows a release-page QR instead of downloading in place. The flag
+  // makes a manual "check update" open the QR once the async check reports a
+  // new version; automatic background checks must never interrupt the user.
+  var updateQRRequested = false;
+  function androidUpdateQRMode() { return !desktopShell && !webosShell; }
+  function canShowUpdateQR(data) {
+    return androidUpdateQRMode() && data && !data.desktop && !data.manual_install &&
+      data.release_url && (data.state === 'available' || data.state === 'ready');
+  }
+  function maybeShowUpdateQR(data) {
+    if (!updateQRRequested || !canShowUpdateQR(data) || updateQROpen) return;
+    updateQRRequested = false;
+    openUpdateQR(data.release_url, data.latest_version);
+  }
+
   var appUpdates = window.HongguoAppUpdates.create({
     bridge: window.HongguoTVUpdates,
     canPrompt: canShowAppUpdate,
+    qrMode: androidUpdateQRMode,
+    onRelease: function (data) { maybeShowUpdateQR(data); },
     render: function (data) {
       var current = document.getElementById('app-current-version');
       if (data.current_version) current.textContent = data.current_version + (data.edition ? ' · ' + data.edition : '');
@@ -9496,7 +9652,7 @@
       // Keep the active TV focus node alive while native checking/download runs.
       check.disabled = !data.supported;
       check.setAttribute('aria-disabled', data.state === 'checking' || data.state === 'downloading' || data.state === 'installing' ? 'true' : 'false');
-      check.textContent = data.state === 'checking' ? uiText('ui.checking', '检查中…') : data.manual_install ? uiText('ui.checkUpdate', '检查更新') : !data.desktop && data.state === 'ready' ? uiText('ui.installUpdate', '安装更新') : !data.desktop && data.state === 'available' ? uiText('ui.viewUpdate', '查看更新 {version}', { version: data.latest_version }) : uiText('ui.checkUpdate', '检查更新');
+      check.textContent = data.state === 'checking' ? uiText('ui.checking', '检查中…') : data.manual_install ? uiText('ui.checkUpdate', '检查更新') : androidUpdateQRMode() && data.release_url && (data.state === 'ready' || data.state === 'available') ? uiText('ui.scanUpdate', '扫码更新 {version}', { version: data.latest_version }) : !data.desktop && data.state === 'ready' ? uiText('ui.installUpdate', '安装更新') : !data.desktop && data.state === 'available' ? uiText('ui.viewUpdate', '查看更新 {version}', { version: data.latest_version }) : uiText('ui.checkUpdate', '检查更新');
       if (webosShell && data.manual_install) {
         var webosNotes = document.getElementById('desktop-update-notes');
         webosNotes.classList.toggle('is-hidden', !data.latest_version);
@@ -9529,9 +9685,14 @@
           showNotice(uiText('ui.newVersionNotice', '发现新版本 {version}，可在设置中下载更新。', { version: data.latest_version }));
         }
       }
+      maybeShowUpdateQR(data);
     }
   });
-  document.getElementById('app-check-update').addEventListener('click', appUpdates.activate);
+  document.getElementById('app-check-update').addEventListener('click', function () {
+    if (androidUpdateQRMode()) updateQRRequested = true;
+    appUpdates.activate();
+  });
+  document.getElementById('update-qr-close').addEventListener('click', function () { closeUpdateQR(true); });
   document.getElementById('desktop-download-update').addEventListener('click', function () { if (desktopShell) window.HongguoTVUpdates.download(); });
   document.getElementById('desktop-open-update-folder').addEventListener('click', function () { if (desktopShell) window.HongguoTVUpdates.openFolder(); });
   var announcements = window.HongguoAnnouncements ? window.HongguoAnnouncements.create({

@@ -7,12 +7,12 @@ import androidx.media3.exoplayer.audio.AudioSink;
 import androidx.media3.exoplayer.audio.DefaultAudioSink;
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector;
 
-/** v0.2.136: HTML5 first, with a platform-decoder-only Media3 fallback. */
+/** Media3 is the primary playback path, with a platform-decoder-only renderer factory. */
 @android.annotation.SuppressLint("UnsafeOptInUsageError")
 final class PlayerRendererPolicy {
     private PlayerRendererPolicy() {}
 
-    static boolean primaryPlayback() { return false; }
+    static boolean primaryPlayback() { return true; }
 
     static DefaultRenderersFactory create(Context context, boolean forceSoftwareHevc,
                                            boolean pcmAudio, MediaCodecSelector selector) {

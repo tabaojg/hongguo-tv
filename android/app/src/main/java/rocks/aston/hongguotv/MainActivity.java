@@ -139,6 +139,8 @@ public class MainActivity extends Activity {
                 return DeviceDiagnostics.isTelevision(MainActivity.this);
             }
         }, "HongguoTVDiagnostics");
+        // The player clock uses the WebView's own Date (device system time), so
+        // no JavaScriptInterface bridge is needed on the video-rendering thread.
         webView.addJavascriptInterface(new PlaybackPreferences(this), "HongguoTVPreferences");
         webView.addJavascriptInterface(new InputBridge(), "HongguoTVInput");
         webView.addJavascriptInterface(new HomeChannelBridge(), "HongguoTVHome");

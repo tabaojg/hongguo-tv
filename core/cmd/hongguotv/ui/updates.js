@@ -25,9 +25,20 @@
       } catch (error) { lastData = null; options.render({ supported: false, state: 'error', message: t('content.updateUnavailable', '更新功能暂时不可用') }); }
     }
     function check() { if (options.bridge) { refresh(); options.bridge.check(); } }
+    // Android renders a release-page QR instead of downloading in place. When
+    // a version is already known and a release URL is present, hand it to the
+    // host UI rather than starting an install. Otherwise keep the old flow.
+    function releaseAvailable(data) {
+      return data && !data.desktop && !data.manual_install && data.release_url &&
+        (data.state === 'available' || data.state === 'ready');
+    }
     function activate() {
       if (!options.bridge) return;
       refresh();
+      if (typeof options.qrMode === 'function' && options.qrMode() && releaseAvailable(lastData)) {
+        if (options.onRelease) options.onRelease(lastData);
+        return;
+      }
       if (lastData && !lastData.desktop && lastData.state === 'ready' && typeof options.bridge.install === 'function') options.bridge.install();
       else options.bridge.check();
     }
