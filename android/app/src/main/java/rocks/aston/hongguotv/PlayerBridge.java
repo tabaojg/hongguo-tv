@@ -95,6 +95,7 @@ final class PlayerBridge implements NativePlayerAdapter {
         long position;
         boolean triedSoftwareHevcFallback;
         boolean forceSoftwareHevc;
+        boolean softwareFallbackNotified;
         Session(long generation, String id, List<String> urls, Map<String,String> headers,boolean live,boolean compatibility,boolean hardwareHevc) {
             this.generation=generation;this.id=id;this.urls=urls;this.headers=headers;this.live=live;this.compatibility=compatibility;
             pcmAudio=PlaybackCodecPolicy.pcmAudio(compatibility,live,Build.VERSION.SDK_INT);

@@ -889,7 +889,9 @@ test('standard Media3 software-decode fallback emits a one-shot page notice', ()
   const bridgeSource = fs.readFileSync(require.resolve('../android/app/src/main/java/rocks/aston/hongguotv/PlayerBridge.java'), 'utf8');
   // The notice is tied to the exact moment a software decoder is confirmed for
   // the HEVC retry, guarded so it fires at most once per session.
-  assert.match(bridgeSource, /softwareFallbackNotified/);
+  // The flag must be declared on Session as well as used below: a merge once
+  // dropped the field while keeping the use sites, breaking the Android build.
+  assert.match(bridgeSource, /private static final class Session \{[\s\S]*?boolean softwareFallbackNotified;/);
   assert.match(bridgeSource, /if\(!current\.softwareFallbackNotified\)\{/);
   assert.match(bridgeSource, /current\.softwareFallbackNotified=true;/);
   assert.match(bridgeSource, /send\(current\.id,"software-fallback",null\)/);
