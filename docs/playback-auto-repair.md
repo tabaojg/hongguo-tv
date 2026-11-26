@@ -1,5 +1,11 @@
 # Optional automatic playback repair
 
+The switch and JS behavior documented below are unchanged. The separate
+[data-only native JSON profile](playback-profile-authoring.md) is automatic and
+requires no user preference or custom address. Disabling JS does not disable
+native JSON updates. JSON is interpreted by Go / the existing webOS service,
+without creating a Goja VM or Node worker.
+
 The feature is off by default. Android (including MPV/Android 5 builds) and
 desktop share one Go service. Settings exposes one persistent switch, current
 native/repair status, last check and manual check/disable actions. The setting
@@ -152,3 +158,21 @@ error classification rather than identifying a healthy script as broken.
 This does not constitute LG-device acceptance,
 an expanded default rollout, or a new device memory benchmark. Raw URLs, media,
 identities and keys stay outside the repository.
+
+## Unified rule status in Settings
+
+The playback protection card shows one **current priority**, not a second
+rule selector. An enabled JS preference alone does not claim a downloaded JS
+rule is active: only the existing `source=repair` state does. Otherwise the
+card shows the automatic JSON profile and its version, or the original builtin
+fallback if that service is unavailable. Rule priority, execution, consent,
+rollbacks and retry behavior are unchanged.
+
+The shared check button remains visible with JS off. It calls the existing
+`check` action: JSON is always checked, JS only when previously enabled. Only
+JSON's nested status adds check progress, completion time and a change counter;
+its state never replaces the JS `checking`, `revision` or `source` fields used
+by enable-and-retry and announcements. UI polling reads local status only,
+stops after the check outside Settings, and never repeatedly fetches upstream.
+Repeated checks coalesce; updates retain current focus. Closing JS keeps the
+JSON profile active. No app restart is required.

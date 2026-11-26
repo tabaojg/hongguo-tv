@@ -221,10 +221,14 @@
   var playbackMenuHintCandidate = false;
   var playbackMenuHintTimer = 0;
   var playbackMenuHintPreviewForced = /(?:^|[?&])show-playback-menu-hint=1(?:&|$)/.test((window.location && window.location.search) || '');
-  var playbackMenuHintAvailable = androidShell || webosShell || playbackMenuHintPreviewForced;
+  // Android keeps the menu key as a shortcut to the bottom playback controls;
+  // the old right-side menu hint would describe an interaction that no longer
+  // exists there. webOS and browser previews retain the existing hint.
+  var playbackMenuHintAvailable = webosShell || playbackMenuHintPreviewForced;
   function applicationHidden() { return desktopShell ? !!window.HongguoDesktop.background : !!document.hidden; }
   document.documentElement.classList.toggle('desktop-shell', desktopShell);
   document.documentElement.classList.toggle('tv-shell', androidShell || webosShell);
+  document.documentElement.classList.toggle('android-shell', androidShell);
   var numericKeypad;
   var accountNumberScan;
   var accountPhoneCountries = window.HongguoPhoneCountries || [];
@@ -471,6 +475,10 @@
   var playbackAudioHold = null;
   var playbackTiming = [];
   var playbackRecovery = HongguoPlaybackRecovery.create({ maxAttempts: 1 });
+  // A paused CDN/Range connection can outlive its signed media URL. Only an
+  // explicit resume after a meaningful pause may spend the one extra source
+  // refresh budget; short pauses retain the existing playback path.
+  var playbackLongPauseRecoveryMs = 30000;
   function playbackContentType(item) {
     var value = item && item.content_type;
     // Preserve the album's 1003 identity for details/history; its individual
@@ -1173,6 +1181,7 @@
   }
 
   function openPlaybackCommandMenu(focusAction, preserveReturnFocus) {
+    if (androidShell) return false;
     if (!playbackCommandMenuAvailable() || !playbackCommandMenu || detailModalOpen || confirmOpen || discussionOpen || supportModalOpen || rankFilterOpen || detailCastOpen || playerOptionsOpen || scanModalOpen() || (typeof actorWorksOpen !== 'undefined' && actorWorksOpen) || (endRecommendations && endRecommendations.isOpen())) return false;
     if (playbackCommandMenuOpen) return true;
     if (!preserveReturnFocus) {
@@ -1191,9 +1200,21 @@
     return true;
   }
 
+  function focusAndroidPlaybackControls() {
+    if (!androidShell || !playbackCommandMenuAvailable() || detailModalOpen || confirmOpen || discussionOpen || supportModalOpen || rankFilterOpen || detailCastOpen || playerOptionsOpen || scanModalOpen() || (typeof actorWorksOpen !== 'undefined' && actorWorksOpen) || (endRecommendations && endRecommendations.isOpen())) return false;
+    revealControls();
+    var current = remoteFocusTarget() || document.activeElement;
+    var target = current && zoneOf(current) === 'controls' && !current.classList.contains('is-hidden') && current.getClientRects().length ? current : null;
+    if (!target && lastPlaybackControl && !lastPlaybackControl.classList.contains('is-hidden') && lastPlaybackControl.getClientRects().length) target = lastPlaybackControl;
+    if (!target) target = firstVisible('[data-action="pause"]') || firstVisible('.playback-buttons .control-button');
+    if (target) goFocus(target);
+    return !!target;
+  }
+
   function togglePlaybackCommandMenu() {
     var existingHint = document.getElementById('playback-menu-hint');
     if (existingHint && !existingHint.classList.contains('is-hidden') && typeof closePlaybackMenuHint === 'function') closePlaybackMenuHint();
+    if (androidShell) return focusAndroidPlaybackControls();
     return playbackCommandMenuOpen ? closePlaybackCommandMenu(true) : openPlaybackCommandMenu();
   }
 
@@ -5252,15 +5273,27 @@
       });
     });
   }
-  function recoverPlaybackAfterError(playback) {
+  function playbackLongPauseRecoveryEligible(playback) {
+    if (!playback || playback !== activePlayback || playback.generation !== feedGeneration ||
+        !playback.started || playback.completed || playback.ended || applicationInBackground || applicationHidden()) return false;
+    var video = document.getElementById('hero-video');
+    var pausedAt = Number(playback.pauseStartedAt) || 0;
+    return pausedAt > 0 && Date.now() - pausedAt >= playbackLongPauseRecoveryMs &&
+      video.paused && !video.ended && !!video.getAttribute('src');
+  }
+  function recoverPlaybackAfterError(playback, options) {
     if (!playback || playback !== activePlayback || playback.generation !== feedGeneration) return false;
-    var action = playbackRecovery.next({ native: playbackEngineName() });
+    options = options || {};
+    var action = playbackRecovery.next({ native: playbackEngineName(), resumeAfterLongPause: options.resumeAfterLongPause === true });
     if (action !== 'refresh') return false;
     var video = document.getElementById('hero-video');
     var position = Math.max(0, Number(video.currentTime) || Number(playback.position) || 0);
     playback.recoveryAttempts = playbackRecovery.attempts();
     showNotice(uiText('content.sourceRefreshing', '正在刷新播放地址…'));
-    playFeedItem(feedIndex, playback.episode, position, null, null, { recoveryAttempts: playback.recoveryAttempts });
+    playFeedItem(feedIndex, playback.episode, position, null, null, {
+      recoveryAttempts: playback.recoveryAttempts,
+      resumeAfterLongPause: options.resumeAfterLongPause === true
+    });
     return true;
   }
   function recoverPlaybackPreparation(playback, error, generation) {
@@ -6050,6 +6083,7 @@
           episodeCoverAllowed: keepEpisodeCover,
           preserveNativeTransition: sameSeries,
           endedPending: false,
+          pauseStartedAt: 0, resumeAfterPauseRequested: false, longPauseMediaError: false,
           autoRecommendation: autoRecommendation, autoRecommendationRecorded: false,
           orientationContext: orientationContext || null, orientationChecked: !orientationContext,
           mode: '', rangeFallback: '', rangeFallbackAttempted: false, videoWidth: 0, videoHeight: 0,
@@ -8161,7 +8195,8 @@
         var image = document.createElement('img'); image.className = 'series-cover'; image.alt = ''; setCover(image, item);
         var copy = document.createElement('span'); copy.className = 'series-copy';
         var title = document.createElement('span'); title.className = 'series-title'; setContentText(title, item.title);
-        var meta = document.createElement('span'); meta.className = 'series-meta'; meta.textContent = [item.label, item.subtitle || (item.episode_count ? uiText('content.episodeCount', '全{count}集', { count: item.episode_count }) : '')].filter(Boolean).join(' · ');
+        var meta = document.createElement('span'); meta.className = 'series-meta';
+        setContentText(meta, [item.label, item.subtitle || (item.episode_count ? uiText('content.episodeCount', '全{count}集', { count: item.episode_count }) : '')].filter(Boolean).join(' · '));
         copy.appendChild(title); copy.appendChild(meta);
         var status = document.createElement('span'); status.className = 'series-status';
         row.appendChild(image); row.appendChild(copy); row.appendChild(status);
@@ -8418,10 +8453,25 @@
     var video = document.getElementById('hero-video');
     if (!video.src) { showNotice(uiText('content.noOpenDrama', '请先打开一部短剧并选择集数。')); return; }
     var feedbackSource = video.src;
-    if (video.paused) playMedia(video).then(function () {
+    if (video.paused) {
+      var longPause = playbackLongPauseRecoveryEligible(activePlayback);
+      if (longPause && activePlayback && (activePlayback.longPauseMediaError || video.error)) {
+        activePlayback.resumeAfterPauseRequested = true;
+        if (recoverPlaybackAfterError(activePlayback, { resumeAfterLongPause: true })) return;
+        activePlayback.resumeAfterPauseRequested = false;
+      }
+      if (longPause && activePlayback) activePlayback.resumeAfterPauseRequested = true;
+      playMedia(video).then(function () {
       if (video.src === feedbackSource && !video.paused && isPlaybackPage()) showPlaybackFeedback('play');
-    }).catch(function () { showNotice(uiText('content.playerBlocked', '播放被设备阻止，请再次确认。')); });
-    else { video.pause(); showPlaybackFeedback('pause'); }
+      }).catch(function (error) {
+        var resumed = activePlayback && activePlayback.resumeAfterPauseRequested &&
+          playbackLongPauseRecoveryEligible(activePlayback) && error &&
+          error.name !== 'NotAllowedError' && error.name !== 'AbortError' &&
+          recoverPlaybackAfterError(activePlayback, { resumeAfterLongPause: true });
+        if (!resumed && activePlayback) activePlayback.resumeAfterPauseRequested = false;
+        if (!resumed) showNotice(uiText('content.playerBlocked', '播放被设备阻止，请再次确认。'));
+      });
+    } else { video.pause(); showPlaybackFeedback('pause'); }
   }
 
   function activatePage(item, restoring) {
@@ -9196,6 +9246,11 @@
   media.addEventListener('playing', function () {
     if (window.HongguoDesktopPlaybackAwake) window.HongguoDesktopPlaybackAwake(true);
     document.getElementById('danmaku-layer').classList.remove('is-paused'); tickDanmaku();
+    if (activePlayback) {
+      activePlayback.pauseStartedAt = 0;
+      activePlayback.resumeAfterPauseRequested = false;
+      activePlayback.longPauseMediaError = false;
+    }
     markPlaybackStarted(activePlayback);
   });
   media.addEventListener('play', function () { if (window.HongguoDesktopPlaybackAwake) window.HongguoDesktopPlaybackAwake(true); });
@@ -9254,7 +9309,13 @@
     if (window.HongguoDesktopPlaybackAwake) window.HongguoDesktopPlaybackAwake(false);
     resetNextSeasonHint();
     if (typeof cancelFullEpisodePrefetchForPlayback === 'function') cancelFullEpisodePrefetchForPlayback(activePlayback);
-    if (activePlayback) activePlayback.stableSince = 0;
+    if (activePlayback) {
+      activePlayback.stableSince = 0;
+      if (activePlayback.started && !activePlayback.completed && !activePlayback.ended &&
+          media.getAttribute('src') && !media.ended && !activePlayback.continuationPending && !activePlayback.pauseStartedAt) {
+        activePlayback.pauseStartedAt = Date.now();
+      }
+    }
     var staticMpvFrame = activePlayback && playbackEngineName() === 'mpv' && !activePlayback.started &&
       activePlayback.presentation && activePlayback.presentation.rendered && activePlayback.presentation.nativeFrameCoreIdle !== true &&
       media.paused && document.getElementById('hero').classList.contains('is-preparing-video');
@@ -9325,6 +9386,16 @@
     resetNextSeasonHint();
     if (!activePlayback || !media.getAttribute('src')) return;
     clearRangeStallTimer();
+    var longPause = typeof playbackLongPauseRecoveryEligible === 'function' && playbackLongPauseRecoveryEligible(activePlayback);
+    // A stale source may report its error while the user is still paused.
+    // Defer the decision until the user explicitly resumes; this avoids
+    // turning an intentional long pause into a failure banner.
+    if (longPause && media.paused && !activePlayback.resumeAfterPauseRequested) {
+      activePlayback.longPauseMediaError = true;
+      setPlayerStatus('');
+      return;
+    }
+    if (longPause && activePlayback.resumeAfterPauseRequested && recoverPlaybackAfterError(activePlayback, { resumeAfterLongPause: true })) return;
     if (fallbackRangePlayback(activePlayback)) return;
     if (recoverPlaybackAfterError(activePlayback)) return;
     setPlayerStatus(uiText('ui.playbackFailed', '这集未能正常播放'), true);
@@ -9681,6 +9752,7 @@
     button.classList.toggle('is-hidden', !show);
   }
   function renderPlaybackRepair(state) {
+    var view = window.HongguoPlaybackRepair.view(state);
     var card = document.getElementById('playback-repair-settings');
     card.classList.toggle('is-hidden', !state.supported);
     var toggle = document.getElementById('playback-repair-toggle');
@@ -9690,17 +9762,19 @@
     var label = repairText(state.enabled ? 'onLabel' : 'offLabel');
     var toggleLabel = toggle.querySelector('.repair-toggle-label');
     if (toggleLabel.textContent !== label) toggleLabel.textContent = label;
-    repairTextContent('playback-repair-badge', repairText(state.source === 'repair' ? 'repair' : 'native'));
-    repairTextContent('playback-repair-current', repairText(state.source === 'repair' ? 'currentRepair' : 'currentNative', { version: state.version || '' }));
-    var when = state.last_checked ? new Date(state.last_checked).toLocaleString() : '';
+    repairTextContent('playback-repair-current', repairText(view.nameKey));
+    repairTextContent('playback-repair-badge', view.format);
+    document.getElementById('playback-repair-badge').classList.toggle('is-hidden', !view.format);
+    repairTextContent('playback-repair-version', view.version ? repairText('version', { version: view.version }) : '');
+    document.getElementById('playback-repair-version').classList.toggle('is-hidden', !view.version);
+    document.getElementById('playback-repair-automatic').classList.toggle('is-hidden', !view.automatic);
+    var when = view.lastChecked ? new Date(view.lastChecked).toLocaleString() : '';
     repairTextContent('playback-repair-checked', repairText(when ? 'checked' : 'notChecked', { time: when }));
-    var statusKey = !state.enabled ? 'off' : state.checking ? 'checking' : state.event === 'check_failed' ? 'failed' :
-      state.event === 'remote_disabled' ? 'disabled' : state.event === 'rolled_back' ? 'rolledBack' : state.source === 'repair' ? state.event === 'updated' ? 'ready' : 'latest' : 'failed';
-    repairTextContent('playback-repair-status', repairText(statusKey));
-    var actions = document.getElementById('playback-repair-actions');
-    if (!state.enabled && actions.contains(document.activeElement)) goFocus(toggle);
-    actions.classList.toggle('is-hidden', !state.enabled);
-    document.getElementById('playback-repair-check').setAttribute('aria-disabled', state.checking ? 'true' : 'false');
+    repairTextContent('playback-repair-status', repairText(view.statusKey));
+    var restore = document.getElementById('playback-repair-restore');
+    if (!state.enabled && document.activeElement === restore) goFocus(document.getElementById('playback-repair-check'));
+    restore.classList.toggle('is-hidden', !state.enabled);
+    document.getElementById('playback-repair-check').setAttribute('aria-disabled', view.checking || repairSaving ? 'true' : 'false');
     updatePlaybackRepairOffer(!document.getElementById('player-retry').classList.contains('is-hidden'));
     if (announcements && announcements.updateRepairStatus) announcements.updateRepairStatus();
   }
@@ -9711,6 +9785,7 @@
     updated: function () { if (!activePlayback || !activePlayback.started) showNotice(repairText('updated')); },
     failed: function () { showNotice(repairText('saveFailed')); }
   });
+  if (window.HongguoI18n && window.HongguoI18n.onChange) window.HongguoI18n.onChange(function () { renderPlaybackRepair(playbackRepair.snapshot()); });
   function changePlaybackRepair(action) {
     if (repairSaving) return;
     repairSaving = true; renderPlaybackRepair(playbackRepair.snapshot());
@@ -9718,7 +9793,7 @@
   }
   document.getElementById('playback-repair-toggle').addEventListener('click', function () { changePlaybackRepair(playbackRepair.snapshot().enabled ? 'disable' : 'enable'); });
   document.getElementById('playback-repair-restore').addEventListener('click', function () { changePlaybackRepair('restore'); });
-  document.getElementById('playback-repair-check').addEventListener('click', function () { if (!playbackRepair.snapshot().checking) changePlaybackRepair('check'); });
+  document.getElementById('playback-repair-check').addEventListener('click', function () { if (!window.HongguoPlaybackRepair.view(playbackRepair.snapshot()).checking) changePlaybackRepair('check'); });
   document.getElementById('player-enable-repair').addEventListener('click', function () {
     if (repairRetrying || !activePlayback || !playbackRepair.eligible(activePlayback.preparationError)) return;
     var playback = activePlayback, request = playbackRequest, generation = feedGeneration, owner = accountEpoch, failure = activePlayback.preparationError;
