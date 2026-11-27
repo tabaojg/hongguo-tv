@@ -2,12 +2,6 @@ name: webOS experimental package
 
 on:
   workflow_dispatch:
-    inputs:
-      publish_update:
-        description: Publish the webOS update notice after the IPK release
-        required: false
-        default: false
-        type: boolean
   push:
     branches:
       - codex/webos-experimental
@@ -73,12 +67,4 @@ jobs:
               --prerelease \
               --notes-file docs/webos-release.md
           fi
-          if [[ "$GITHUB_EVENT_NAME" == push || "${{ inputs.publish_update }}" == true ]]; then
-            python3 scripts/publish_webos_update.py \
-              --ipk "${{ steps.release.outputs.asset }}" \
-              --version "${{ steps.release.outputs.version }}" \
-              --notes docs/webos-release.md \
-              --out "$RUNNER_TEMP/webos-update.json" --publish
-          else
-            echo "Manual test package: leaving webOS update notice unchanged"
-          fi
+          echo "Manual test package published; the app no longer checks for in-app updates"
