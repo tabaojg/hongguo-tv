@@ -122,12 +122,12 @@ test('preview uses the real local emoji and likes renderer; failures roll back w
 });
 
 test('remote paths enter and leave the new card, including wrapped rows and hidden platform settings',()=>{
-  const visible=new Set(['.danmaku-region-action','.danmaku-size-action','.episode-prefetch-action','.app-update-action']);
+  const visible=new Set(['.danmaku-region-action','.danmaku-size-action','.episode-prefetch-action']);
   const c=vm.createContext({
     coreConnectionModalOpen:false,endRecommendations:null,detailModalOpen:false,actorWorksOpen:false,confirmOpen:false,playerOptionsOpen:false,
-    discussionOpen:false,accountCountryModalOpen:false,supportModalOpen:false,rankFilterOpen:false,
+    discussionOpen:false,accountCountryModalOpen:false,smsQROpen:false,rankFilterOpen:false,
     scanModalOpen:()=>false,accountKeypadOpen:()=>false,zoneOf:n=>n.zone,firstVisible:s=>visible.has(s)?s:null,
-    activeSidebar:()=> 'sidebar',moveWithinZone:()=>null,moveGrid:()=>null
+    activeSidebar:()=> 'sidebar',selectedSidebarDisplay:()=>null,moveWithinZone:()=>null,moveGrid:()=>null
   });
   vm.runInContext(slice('moveFrom','accountKeypadFocus'),c);
   const move=(zone,direction)=>c.moveFrom({zone},direction);
@@ -138,13 +138,11 @@ test('remote paths enter and leave the new card, including wrapped rows and hidd
   assert.equal(move('danmakuSize','left'),'sidebar');
   assert.equal(move('danmakuSize','right'),null);
   visible.delete('.episode-prefetch-action');
-  assert.equal(move('danmakuSize','down'),'.app-update-action');
-  assert.equal(move('appUpdates','up'),'.danmaku-size-action');
+  assert.equal(move('danmakuSize','down'),'sidebar');
   visible.add('.playback-mode-action');
   assert.equal(move('danmakuSize','down'),'.playback-mode-action');
   assert.equal(move('playbackModes','up'),'.danmaku-size-action');
-  assert.equal(move('playbackModes','down'),'.app-update-action');
-  assert.equal(move('appUpdates','up'),'.playback-mode-action');
+  assert.equal(move('playbackModes','down'),'sidebar');
   visible.delete('.playback-mode-action');
   visible.add('.windows-playback-action');
   visible.add('.desktop-mini-titlebar-action');
@@ -152,10 +150,7 @@ test('remote paths enter and leave the new card, including wrapped rows and hidd
   assert.equal(move('windowsPlayback','up'),'.danmaku-size-action');
   assert.equal(move('windowsPlayback','down'),'.desktop-mini-titlebar-action');
   assert.equal(move('miniPlayerSettings','up'),'.windows-playback-action');
-  assert.equal(move('miniPlayerSettings','down'),null);
-  visible.add('#app-check-update');
-  assert.equal(move('miniPlayerSettings','down'),'#app-check-update');
-  assert.equal(move('appUpdates','up'),'.desktop-mini-titlebar-action');
+  assert.equal(move('miniPlayerSettings','down'),'sidebar');
   visible.delete('.windows-playback-action');
   assert.equal(move('danmakuSize','down'),'.desktop-mini-titlebar-action');
   assert.equal(move('miniPlayerSettings','up'),'.danmaku-size-action');

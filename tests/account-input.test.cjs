@@ -9,7 +9,7 @@ const keyNames = source.match(/  var keyNames = \{[\s\S]*?\n  \};/)[0];
 function router() {
   const c=vm.createContext({});
   vm.runInContext(`
-    var document={activeElement:{id:'app-check-update'}},moved=[];
+    var document={activeElement:{id:'settings-page'}},moved=[];
     var numericKeypad,searchSuggestionActivation=null;function accountKeypadOpen(){return numericKeypad.isOpen()}
     function moveFrom(current,direction){moved.push(direction)}
     function handleBack(){return true}function handleMediaCommand(){return false}

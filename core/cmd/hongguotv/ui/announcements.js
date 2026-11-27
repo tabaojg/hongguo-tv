@@ -24,7 +24,7 @@
   }
   function normalizeItem(item, now) {
     if (!item || typeof item !== 'object' || !bool(item.enabled) || !text(item.id) || !text(item.title) || isExpired(item, now)) return null;
-    var action = item.action && ['check_update', 'repair_playback'].indexOf(item.action.type) >= 0 ? { type: item.action.type, label: text(item.action.label) } : null;
+    var action = item.action && ['repair_playback'].indexOf(item.action.type) >= 0 ? { type: item.action.type, label: text(item.action.label) } : null;
     if (action && action.type === 'repair_playback' && typeof item.action.min_revision === 'number' && item.action.min_revision >= 1 && item.action.min_revision <= 9007199254740991 && Math.floor(item.action.min_revision) === item.action.min_revision) action.min_revision = item.action.min_revision;
     return {
       id: text(item.id), kind: text(item.kind), level: text(item.level), status: text(item.status),
@@ -102,10 +102,10 @@
         if (item.summary) { var summary = doc.createElement('p'); summary.className = 'system-announcement-summary'; summary.textContent = item.summary; article.appendChild(summary); }
         if (item.body) { var body = doc.createElement('p'); body.className = 'system-announcement-body'; body.textContent = item.body; article.appendChild(body); }
         var actions = doc.createElement('div'); actions.className = 'app-update-actions system-announcement-actions';
-        if (item.action) {
+        if (item.action && item.action.type === 'repair_playback') {
           var action = doc.createElement('button'); action.type = 'button'; action.className = 'announcement-action account-action';
           action.dataset.action = item.action.type; action.dataset.announcementId = item.id; action.dataset.focus = 'announcement-' + item.id + '-action';
-          action.textContent = item.action.label || (item.action.type === 'repair_playback' ? t('repair.announcementAction', '更新播放解析') : t('settings.announcementCheckUpdate', '检查更新')); actions.appendChild(action);
+          action.textContent = item.action.label || t('repair.announcementAction', '更新播放解析'); actions.appendChild(action);
         }
         if (item.dismissible) {
           var acknowledge = doc.createElement('button'); acknowledge.type = 'button'; acknowledge.className = 'announcement-action account-action';
@@ -141,10 +141,6 @@
       if (action === 'acknowledge') { acknowledge(id); return true; }
       if (action === 'repair_playback') {
         if (typeof options.repairPlayback === 'function') options.repairPlayback();
-        return true;
-      }
-      if (action === 'check_update') {
-        if (typeof options.checkUpdate === 'function') options.checkUpdate();
         return true;
       }
       return false;

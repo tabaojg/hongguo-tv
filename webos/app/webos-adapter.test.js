@@ -16,7 +16,6 @@ var healthPayload = { ok: true, ready: true, port: 7655 };
 var healthFails = false;
 var cacheCalls = [];
 var rejectNextCacheUpdate = false;
-var updateChecks = 0;
 var window = {
   Promise: Promise,
   setTimeout: function (callback, delay) { return delay === 5000 ? null : setTimeout(callback, delay); },
@@ -26,14 +25,6 @@ var window = {
     fetchCalls.push({ input: input, options: options });
     if (String(input).indexOf('/api/v1/health') >= 0) {
       return healthFails ? Promise.resolve({ ok: false, status: 503 }) : Promise.resolve({ ok: true, status: 200, json: function () { return Promise.resolve(healthPayload); } });
-    }
-    if (String(input).indexOf('/api/v1/webos/update') >= 0) {
-      updateChecks++;
-      return Promise.resolve({ ok: true, json: function () { return Promise.resolve({ ok: true, data: {
-        schema: 1, platform: 'webos', app_id: 'com.aston314.hongguo.webos', version_name: '0.2.117',
-        release_tag: 'webos-v0.2.117-test.26', release_url: 'https://github.com/aston314/hongguo-tv-releases/releases/tag/webos-v0.2.117-test.26',
-        release_notes: '测试说明', artifact_name: 'hongguo-webos-0.2.117-test.26.ipk', artifact_size: 123, artifact_sha256: 'a'.repeat(64)
-      } }); } });
     }
     if (String(input).indexOf('/api/v1/player/cache-session') >= 0) {
       if (options.keepalive) return Promise.reject(new TypeError('Preflight request for request with keepalive specified is currently not supported'));
@@ -48,7 +39,6 @@ var window = {
   },
   Element: { prototype: { setAttribute: function (name, value) { this[name] = value; }, removeAttribute: function (name) { delete this[name]; if (name === 'src') this._src = ''; } } },
   HTMLMediaElement: function () {},
-  HongguoWebOSUpdates: require('./webos-updates'),
   XMLHttpRequest: function () {},
   addEventListener: function (name, callback) { listeners[name] = callback; },
   webOS: { service: { request: function (uri, options) {
@@ -133,12 +123,6 @@ async function run() {
   assert.strictEqual(cacheCalls.filter(function (call) { return call.action === 'open'; }).length, 2, 'service restart renews the active session without waiting for another source change');
   assert.strictEqual(cacheCalls[cacheCalls.length - 1].token, 'aaaaaaaaaaaaaaaaaaaaaaaa');
   assert.strictEqual(window.HongguoWebOS.getDiagnostic().code, 'READY');
-
-  await window.HongguoTVUpdates.check();
-  assert.strictEqual(updateChecks, 1);
-  assert.strictEqual(JSON.parse(window.HongguoTVUpdates.getStatus()).state, 'current');
-  assert.strictEqual(window.HongguoTVUpdates.install, undefined);
-  assert.strictEqual(window.HongguoTVUpdates.download, undefined);
 
   failNextPingWithTimeout = true;
   documentListeners.visibilitychange();

@@ -44,10 +44,10 @@ test('invalid text and expired service leases stop without applying a query',asy
 test('app search gating requires the visible search page and excludes foreground dialogs and desktop',()=>{
   const source=fs.readFileSync(require.resolve('../core/cmd/hongguotv/ui/app.js'),'utf8');
   const code=source.slice(source.indexOf('  function canReceivePhoneSearch('),source.indexOf('  function renderPhoneSearchScan('));
-  const c={desktopShell:false,applicationInBackground:false,applicationHidden:()=>false,pageMode:()=> 'search',detailModalOpen:false,actorWorksOpen:false,confirmOpen:false,supportModalOpen:false,accountKeypadOpen:()=>false,
+  const c={desktopShell:false,applicationInBackground:false,applicationHidden:()=>false,pageMode:()=> 'search',detailModalOpen:false,actorWorksOpen:false,confirmOpen:false,smsQROpen:false,accountKeypadOpen:()=>false,
     phoneSearch:{start(){c.started++},stop(){c.stopped++}},started:0,stopped:0};vm.createContext(c);vm.runInContext(code,c);
   assert(c.canReceivePhoneSearch());c.syncPhoneSearch();assert.equal(c.started,1);
-  for(const key of ['desktopShell','applicationInBackground','detailModalOpen','actorWorksOpen','confirmOpen','supportModalOpen']){c[key]=true;assert.equal(c.canReceivePhoneSearch(),false);c[key]=false}
+  for(const key of ['desktopShell','applicationInBackground','detailModalOpen','actorWorksOpen','confirmOpen','smsQROpen']){c[key]=true;assert.equal(c.canReceivePhoneSearch(),false);c[key]=false}
   c.pageMode=()=> 'player';assert.equal(c.canReceivePhoneSearch(),false);c.syncPhoneSearch();assert.equal(c.stopped,1);
   c.pageMode=()=> 'search';c.applicationHidden=()=>true;c.syncPhoneSearch();assert.equal(c.stopped,2);
 });

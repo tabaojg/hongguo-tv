@@ -69,7 +69,6 @@
         <button class="side-item" data-page="history" data-focus="sidebar-history" aria-label="历史" data-i18n-aria-label="nav.history"><svg class="side-icon"><use href="#icon-history" xlink:href="#icon-history"></use></svg><span data-i18n="nav.history">历史</span></button>
         <button class="side-item" data-page="favorites" data-focus="sidebar-favorites" aria-label="收藏" data-i18n-aria-label="nav.favorites"><svg class="side-icon"><use href="#icon-favorite" xlink:href="#icon-favorite"></use></svg><span data-i18n="nav.favorites">收藏</span></button>
         <button class="side-item" id="sidebar-follows" data-page="follows" data-focus="sidebar-follows" aria-label="追更"><svg class="side-icon"><use href="#icon-bell" xlink:href="#icon-bell"></use></svg><span data-i18n="nav.follow">追更</span><span class="side-notification-dot is-hidden" id="follow-sidebar-badge" aria-hidden="true"></span></button>
-        <button class="side-item" data-page="support" data-focus="sidebar-support" aria-label="打赏" data-i18n-aria-label="nav.support"><svg class="side-icon"><use href="#icon-heart" xlink:href="#icon-heart"></use></svg><span data-i18n="nav.support">打赏</span></button>
         <button class="side-item is-hidden" id="sidebar-apps" data-page="apps" data-focus="sidebar-apps" aria-label="应用" data-i18n-aria-label="nav.apps"><svg class="side-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg><span data-i18n="nav.apps">应用</span></button>
       </nav>
       <div class="watching-return-wrap is-hidden" id="watching-return-wrap">
@@ -363,12 +362,12 @@
 
       <section class="settings-page page-workspace is-hidden" id="settings-page" aria-labelledby="settings-title">
         <div class="settings-heading"><h1 id="settings-title" data-i18n="settings.title">设置</h1></div>
-        <section class="settings-card app-update-card is-hidden" id="system-announcements-card" aria-live="polite">
+        <section class="settings-card settings-panel-card is-hidden" id="system-announcements-card" aria-live="polite">
           <h2 data-i18n="settings.announcementsTitle">系统公告</h2>
           <p data-i18n="settings.announcementsDescription">上游服务或应用的重要变化会显示在这里。</p>
           <div id="system-announcements"></div>
         </section>
-        <section class="settings-card app-update-card repair-settings-card is-hidden" id="playback-repair-settings" aria-labelledby="playback-repair-title">
+        <section class="settings-card settings-panel-card repair-settings-card is-hidden" id="playback-repair-settings" aria-labelledby="playback-repair-title">
           <div class="repair-card-heading"><h2 id="playback-repair-title" data-i18n="repair.eyebrow">播放保障</h2><span class="repair-automatic" id="playback-repair-automatic" data-i18n="repair.automatic">启动时自动检查</span></div>
           <div class="repair-current"><span class="repair-current-label" data-i18n="repair.currentPriority">当前优先使用</span><div class="repair-current-rule"><strong id="playback-repair-current"></strong><span class="repair-badge is-hidden" id="playback-repair-badge"></span></div><span class="repair-current-version" id="playback-repair-version"></span></div>
           <div class="repair-setting-row"><div><strong data-i18n="repair.title">自动修复播放解析</strong><p data-i18n="repair.hint">开启后优先使用修复规则，失败自动回退默认规则。</p></div><button class="repair-action account-action repair-toggle" id="playback-repair-toggle" data-focus="playback-repair-toggle" data-i18n-aria-label="repair.title" aria-label="自动修复播放解析" role="switch" aria-checked="false"><span class="repair-toggle-label">关闭</span><span class="repair-switch-track" aria-hidden="true"><span></span></span></button></div>
@@ -376,60 +375,60 @@
           <p class="repair-status" id="playback-repair-status" role="status" aria-live="polite"></p>
           <div class="app-update-actions" id="playback-repair-actions"><button class="repair-action account-action" id="playback-repair-check" data-focus="playback-repair-check" data-i18n="repair.check">检查解析更新</button><button class="repair-action account-action is-hidden" id="playback-repair-restore" data-focus="playback-repair-restore" data-i18n="repair.restore">关闭自动修复</button></div>
         </section>
-        <div class="settings-card app-update-card" id="sidebar-display-settings">
+        <div class="settings-card settings-panel-card" id="sidebar-display-settings">
           <h2 data-i18n="settings.sidebar">侧边栏显示</h2>
           <p data-i18n="settings.sidebarDescription">选择导航栏的显示方式。默认显示菜单文字，也可以只显示图标以扩大内容区域。</p>
           <div class="app-update-actions"><button class="sidebar-display-action account-action" id="sidebar-display-expanded" data-mode="expanded" data-focus="sidebar-display-expanded" aria-pressed="false" data-i18n="settings.sidebarExpanded">展开显示</button><button class="sidebar-display-action account-action" id="sidebar-display-icons" data-mode="icons" data-focus="sidebar-display-icons" aria-pressed="false" data-i18n="settings.sidebarIcons">仅显示图标</button></div>
           <p id="sidebar-display-state" role="status" aria-live="polite"></p>
         </div>
-        <div class="settings-card app-update-card" id="startup-page-settings">
+        <div class="settings-card settings-panel-card" id="startup-page-settings">
           <h2 data-i18n="settings.startupPage">启动页面</h2>
           <p data-i18n="settings.startupPageDescription">选择打开应用时显示的页面。返回前台时保持原页面。</p>
           <div class="app-update-actions"><button class="startup-page-action account-action" data-page="recommend" data-focus="startup-page-recommend" aria-pressed="false" data-i18n="nav.recommend">推荐</button><button class="startup-page-action account-action" data-page="rank" data-focus="startup-page-rank" aria-pressed="false" data-i18n="nav.rank">排行榜</button><button class="startup-page-action account-action" data-page="new" data-focus="startup-page-new" aria-pressed="false" data-i18n="nav.new">新剧</button><button class="startup-page-action account-action" data-page="history" data-focus="startup-page-history" aria-pressed="false" data-i18n="nav.history">历史</button><button class="startup-page-action account-action" data-page="favorites" data-focus="startup-page-favorites" aria-pressed="false" data-i18n="nav.favorites">收藏</button></div>
           <p id="startup-page-state" role="status" aria-live="polite"></p>
         </div>
-        <div class="settings-card app-update-card" id="language-settings">
+        <div class="settings-card settings-panel-card" id="language-settings">
           <h2 data-i18n="settings.language">界面语言</h2>
           <p data-i18n="settings.languageDescription">选择应用界面语言。切换后会重新加载界面。</p>
           <div class="app-update-actions"><button class="locale-action account-action" id="locale-zh-CN" data-locale="zh-CN" data-focus="locale-zh-CN" aria-pressed="false" data-i18n="settings.languageChineseSimplified">简体中文</button><button class="locale-action account-action" id="locale-zh-TW" data-locale="zh-TW" data-focus="locale-zh-TW" aria-pressed="false" data-i18n="settings.languageChineseTraditional">繁體中文</button><button class="locale-action account-action" id="locale-ja-JP" data-locale="ja-JP" data-focus="locale-ja-JP" aria-pressed="false" data-i18n="settings.languageJapanese">日本語</button></div>
           <p id="language-state" role="status" aria-live="polite"></p>
         </div>
-        <div class="settings-card app-update-card" id="recommendation-direction-settings">
+        <div class="settings-card settings-panel-card" id="recommendation-direction-settings">
           <h2 data-i18n="settings.recommendationDirection">推荐自动播放方向</h2>
           <p data-i18n="settings.recommendationDirectionDescription">只影响推荐页自动起播和自动接播。手动播放与历史续播不受影响；片源未提供画面尺寸时按原逻辑播放。</p>
           <div class="app-update-actions"><button class="recommendation-direction-action account-action" data-mode="all" data-focus="recommendation-direction-all" aria-pressed="false" data-i18n="settings.recommendationDirectionAll">全部剧</button><button class="recommendation-direction-action account-action" data-mode="landscape" data-focus="recommendation-direction-landscape" aria-pressed="false" data-i18n="settings.recommendationDirectionLandscape">仅横屏剧</button><button class="recommendation-direction-action account-action" data-mode="portrait" data-focus="recommendation-direction-portrait" aria-pressed="false" data-i18n="settings.recommendationDirectionPortrait">仅竖屏剧</button></div>
           <p id="recommendation-direction-state" role="status" aria-live="polite"></p>
         </div>
-        <div class="settings-card app-update-card is-hidden" id="auto-cinema-settings">
+        <div class="settings-card settings-panel-card is-hidden" id="auto-cinema-settings">
           <h2 data-i18n="settings.autoCinema">播放时隐藏侧边栏</h2>
           <p data-i18n="settings.autoCinemaDescription">从卡片进入单剧播放后隐藏左侧菜单。播放控件和自动清屏沿用现有逻辑，推荐页不受影响。</p>
           <div class="app-update-actions"><button class="auto-cinema-action account-action" id="auto-cinema-toggle" data-focus="auto-cinema-toggle" aria-pressed="true" data-i18n="settings.autoCinemaEnabled">已开启</button></div>
           <p id="auto-cinema-state" role="status" aria-live="polite"></p>
         </div>
-        <div class="settings-card app-update-card is-hidden" id="recommendation-auto-cinema-settings">
+        <div class="settings-card settings-panel-card is-hidden" id="recommendation-auto-cinema-settings">
           <h2 data-i18n="settings.recommendationAutoCinema">推荐页自动全屏</h2>
           <p data-i18n="settings.recommendationAutoCinemaDescription">开启后，推荐视频清屏时自动进入全屏，按返回键退出。</p>
           <div class="app-update-actions"><button class="recommendation-auto-cinema-action account-action" id="recommendation-auto-cinema-toggle" data-focus="recommendation-auto-cinema-toggle" aria-pressed="false" data-i18n="settings.autoCinemaDisabled">已关闭</button></div>
           <p id="recommendation-auto-cinema-state" role="status" aria-live="polite"></p>
         </div>
-        <div class="settings-card app-update-card is-hidden" id="webos-audio-settings">
+        <div class="settings-card settings-panel-card is-hidden" id="webos-audio-settings">
           <h2 data-i18n="settings.audibleSpeed">有声倍速（实验）</h2>
           <p data-i18n="settings.audibleSpeedDescription">仅用于 webOS，默认关闭。开启后，倍速播放会额外读取音频并占用内存；准备失败或设备处理跟不上时恢复有声 1 倍速。</p>
           <div class="app-update-actions"><button class="webos-audio-action account-action" id="webos-audio-toggle" data-focus="webos-audio-toggle" aria-pressed="false" data-i18n="settings.autoCinemaDisabled">已关闭</button></div>
         </div>
-        <div class="settings-card app-update-card is-hidden" id="portrait-background-settings">
+        <div class="settings-card settings-panel-card is-hidden" id="portrait-background-settings">
           <h2 data-i18n="settings.portraitBackground">竖屏背景</h2>
           <p data-i18n="settings.portraitBackgroundDescription">黑色或当前画面的动态模糊延伸。动态背景增加少量处理开销；设备不支持或处理较慢时保留黑边。</p>
           <div class="app-update-actions"><button class="portrait-background-action account-action" data-mode="black" data-focus="portrait-background-black" aria-pressed="true" data-i18n="settings.portraitBackgroundBlack">黑色</button><button class="portrait-background-action account-action" data-mode="blur" data-focus="portrait-background-blur" aria-pressed="false" data-i18n="settings.portraitBackgroundBlur">动态模糊</button></div>
           <p id="portrait-background-state" role="status" aria-live="polite"></p>
         </div>
-        <div class="settings-card app-update-card" id="danmaku-region-settings">
+        <div class="settings-card settings-panel-card" id="danmaku-region-settings">
           <h2 data-i18n="settings.danmakuRegion">弹幕显示区域</h2>
           <p data-i18n="settings.danmakuRegionDescription">选择弹幕显示在画面中的范围。默认保持现状；顶部区域可以减少对人物和画面主体的遮挡。</p>
           <div class="app-update-actions"><button class="danmaku-region-action account-action" data-mode="current" data-focus="danmaku-region-current" aria-pressed="true" data-i18n="settings.danmakuRegionDefault">当前区域（保持现状）</button><button class="danmaku-region-action account-action" data-mode="half" data-focus="danmaku-region-half" aria-pressed="false" data-i18n="settings.danmakuRegionHalf">顶部 1/2</button><button class="danmaku-region-action account-action" data-mode="quarter" data-focus="danmaku-region-quarter" aria-pressed="false" data-i18n="settings.danmakuRegionQuarter">顶部 1/4</button></div>
           <p id="danmaku-region-state" role="status" aria-live="polite"></p>
         </div>
-        <div class="settings-card app-update-card" id="danmaku-size-settings">
+        <div class="settings-card settings-panel-card" id="danmaku-size-settings">
           <h2 data-i18n="settings.danmakuSize">弹幕字号</h2>
           <p data-i18n="settings.danmakuSizeDescription">默认保持原有大小，最大可放大至 200%。表情与点赞数同步放大。</p>
           <div class="danmaku-size-preview" id="danmaku-size-preview" role="img" data-i18n-aria-label="settings.danmakuSizePreview" aria-label="弹幕字号预览"></div>
@@ -442,50 +441,42 @@
           </div>
           <p id="danmaku-size-state" role="status" aria-live="polite"></p>
         </div>
-        <div class="settings-card app-update-card is-hidden" id="episode-prefetch-settings">
+        <div class="settings-card settings-panel-card is-hidden" id="episode-prefetch-settings">
           <h2 data-i18n="settings.episodePrefetch">下一集预取方式</h2>
           <p data-i18n="settings.episodePrefetchDescription">选择切集前的准备方式。边播边下占用较少；整集预下载切集更快，但会增加网络、存储和处理器占用。</p>
           <div class="app-update-actions"><button class="episode-prefetch-action account-action" id="episode-prefetch-range" data-mode="range" data-focus="episode-prefetch-range" aria-pressed="false" data-i18n="settings.episodePrefetchRange">边播边下</button><button class="episode-prefetch-action account-action" id="episode-prefetch-full" data-mode="full" data-focus="episode-prefetch-full" aria-pressed="false" data-i18n="settings.episodePrefetchFull">整集预下载</button></div>
           <p id="episode-prefetch-state" role="status" aria-live="polite"></p>
         </div>
-        <div class="settings-card app-update-card is-hidden" id="hevc-playback-settings">
+        <div class="settings-card settings-panel-card is-hidden" id="hevc-playback-settings">
           <h2 data-i18n="settings.hevcDecode">HEVC 解码</h2>
           <p data-i18n="settings.hevcPlaybackDescription">仅影响原生播放器的 HEVC 解码。默认沿用兼容策略；卡顿时可尝试硬件优先，画面异常请切回自动。下次播放或切集时生效。</p>
           <div class="app-update-actions"><button class="hevc-hardware-action account-action" data-mode="standard" data-focus="hevc-decode-auto" aria-pressed="true" data-i18n="settings.autoDecodeDefault">自动（默认）</button><button class="hevc-hardware-action account-action" data-mode="hardware" data-focus="hevc-decode-hardware" aria-pressed="false" data-i18n="settings.hardwareDecodePriority">硬件解码优先</button></div>
           <p id="hevc-decode-state" role="status" aria-live="polite"></p>
         </div>
-        <div class="settings-card app-update-card is-hidden" id="mpv-playback-settings">
+        <div class="settings-card settings-panel-card is-hidden" id="mpv-playback-settings">
           <h2 data-i18n="settings.playback">播放解码</h2>
           <p data-i18n="settings.playbackDescription">自动解码优先尝试硬件加速；画面异常时可选软件解码。设置在下次播放或切集时生效。</p>
           <div class="app-update-actions"><button class="playback-mode-action account-action" id="mpv-decode-auto" data-mode="mpv_auto" data-focus="mpv-decode-auto" aria-pressed="false" data-i18n="settings.autoDecode">自动解码</button><button class="playback-mode-action account-action" id="mpv-decode-software" data-mode="mpv_software" data-focus="mpv-decode-software" aria-pressed="false" data-i18n="settings.softwareDecode">软件解码</button></div>
           <p id="mpv-decode-state" role="status" aria-live="polite"></p>
         </div>
-        <div class="settings-card app-update-card is-hidden" id="mpv-playback-settings">
+        <div class="settings-card settings-panel-card is-hidden" id="mpv-playback-settings">
           <h2>播放解码</h2>
           <p>自动解码优先尝试硬件加速；画面异常时可选软件解码。设置在下次播放或切集时生效。</p>
           <div class="app-update-actions"><button class="playback-mode-action account-action" id="mpv-decode-auto" data-mode="mpv_auto" data-focus="mpv-decode-auto" aria-pressed="false">自动解码</button><button class="playback-mode-action account-action" id="mpv-decode-software" data-mode="mpv_software" data-focus="mpv-decode-software" aria-pressed="false">软件解码</button></div>
           <p id="mpv-decode-state" role="status" aria-live="polite"></p>
         </div>
-        <div class="settings-card app-update-card is-hidden" id="windows-playback-settings">
+        <div class="settings-card settings-panel-card is-hidden" id="windows-playback-settings">
           <h2 data-i18n="settings.playback">播放解码</h2>
           <p data-i18n="settings.windowsDecoderDescription">默认保持原有播放方式；无法播放 HEVC 时，可尝试 CPU 软解。下次播放或切集时生效，软解会增加处理器占用。</p>
           <div class="app-update-actions"><button class="windows-playback-action account-action" data-mode="default" data-focus="windows-decode-default" aria-pressed="true" data-i18n="settings.windowsDefault">默认播放</button><button class="windows-playback-action account-action" data-mode="wasm" data-focus="windows-decode-wasm" aria-pressed="false" data-i18n="settings.windowsWasm">CPU 软解（WASM）</button></div>
           <p id="windows-decode-state" role="status" aria-live="polite"></p>
         </div>
-        <div class="settings-card app-update-card is-hidden" id="desktop-mini-titlebar-settings">
+        <div class="settings-card settings-panel-card is-hidden" id="desktop-mini-titlebar-settings">
           <h2 data-i18n="mini.titlebarSetting">小窗隐藏系统标题栏</h2>
           <p data-i18n="mini.titlebarSettingDescription">隐藏标题栏，通过小窗顶部拖动窗口。可随时恢复系统标题栏。</p>
           <div class="app-update-actions"><button class="desktop-mini-titlebar-action account-action" id="desktop-mini-titlebar-toggle" data-focus="desktop-mini-titlebar-toggle" aria-pressed="false">已关闭</button></div>
           <p id="desktop-mini-titlebar-state" role="status" aria-live="polite"></p>
         </div>
-        <div class="settings-card app-update-card" id="app-update-card">
-          <h2 data-i18n="settings.updates">版本更新</h2>
-          <p><span data-i18n="settings.currentVersion">当前版本 </span><strong id="app-current-version" data-i18n="ui.readingVersion">读取中…</strong></p>
-          <p id="app-update-state" role="status" aria-live="polite" data-i18n="ui.updateDefault">启动后每天自动检查一次，播放时不打扰。</p>
-          <div class="app-update-actions"><button class="app-update-action account-action" id="app-check-update" data-focus="app-check-update" data-i18n="settings.checkUpdates">检查更新</button><button class="app-update-action account-action is-hidden" id="desktop-download-update" data-focus="desktop-download-update" data-i18n="ui.downloadZip">下载更新 ZIP</button><button class="app-update-action account-action is-hidden" id="desktop-open-update-folder" data-focus="desktop-open-update-folder" data-i18n="settings.openFolder">打开所在文件夹</button><button class="app-update-action account-action is-hidden" id="app-open-licenses" data-focus="app-open-licenses" data-i18n="settings.licenses">开源许可</button></div>
-          <pre id="desktop-update-notes" class="desktop-update-notes is-hidden"></pre>
-        </div>
-        <section id="update-qr-modal" class="search-scan-modal is-hidden" aria-hidden="true"><div class="search-scan-dialog" role="dialog" aria-modal="true" aria-labelledby="update-qr-title"><h2 id="update-qr-title" data-i18n="ui.updateQRTitle">扫码获取新版本</h2><p id="update-qr-version"></p><div class="search-scan-qr-box"><img id="update-qr-image" class="is-hidden" width="260" height="260" alt="更新发布页二维码" data-i18n-alt="ui.updateQRAlt"></div><p id="update-qr-hint" class="search-scan-hint" data-i18n="ui.updateQRHint">用手机扫描二维码，在浏览器中打开发布页下载安装</p><div class="search-scan-actions"><button id="update-qr-close" class="search-scan-action update-qr-action" data-focus="update-qr-close" data-i18n="ui.updateQRClose">返回</button></div></div></section>
       </section>
 
       <section id="recommended-apps-page" class="page-workspace recommended-apps-page is-hidden" aria-labelledby="recommended-apps-title">
@@ -529,15 +520,7 @@
         <p class="recommended-apps-note" data-i18n="apps.note">选择应用后下载安装，安装需在系统界面确认。</p>
       </section>
 
-      <section id="support-page" class="page-workspace support-page is-hidden" aria-labelledby="support-title">
-        <div class="support-heading"><span class="support-kicker" data-i18n="support.thanks">谢谢你的支持</span><h1 id="support-title" data-i18n="support.title">喜欢这里？请我喝杯咖啡</h1><p data-i18n="support.description">如果这里让你少花一点找剧的时间，多一点追剧的快乐，欢迎请我喝杯咖啡。<br>你的支持，会成为继续打磨体验、保持更新的一份动力。</p></div>
-        <div class="support-methods">
-          <button class="support-card" data-focus="support-wechat" aria-label="放大微信打赏二维码" data-i18n-aria-label="support.wechatQr"><div class="support-card-head"><span class="support-method-dot support-method-wechat"></span><h2 data-i18n="support.wechat">微信打赏</h2><span data-i18n="support.enlarge">确认键放大</span></div><div class="support-qr-frame"><img src="/images/support-wechat.png" alt="微信打赏二维码" data-i18n-alt="support.wechatQrImage" draggable="false"></div><p data-i18n="support.openWechat">打开微信，扫一扫</p></button>
-          <button class="support-card" data-focus="support-alipay" aria-label="放大支付宝打赏二维码" data-i18n-aria-label="support.alipayQr"><div class="support-card-head"><span class="support-method-dot support-method-alipay"></span><h2 data-i18n="support.alipay">支付宝打赏</h2><span data-i18n="support.enlarge">确认键放大</span></div><div class="support-qr-frame"><img src="/images/support-alipay.png" alt="支付宝打赏二维码" data-i18n-alt="support.alipayQrImage" draggable="false"></div><p data-i18n="support.openAlipay">打开支付宝，扫一扫</p></button>
-        </div>
-        <p class="support-thanks" data-i18n="support.copy">一杯咖啡，一份鼓励。谢谢你，让这里变得更好。</p>
-      </section>
-      <div id="support-modal" class="support-modal is-hidden" role="dialog" aria-modal="true" aria-labelledby="support-modal-title" aria-hidden="true"><div class="support-modal-panel"><div class="support-modal-heading"><h2 id="support-modal-title" data-i18n="support.scanTitle">扫码打赏</h2><button id="support-close" class="support-close" data-focus="support-close" data-i18n="common.close">关闭</button></div><div id="support-modal-methods" class="support-modal-methods is-hidden"><button id="support-method-wechat" class="support-method-option" data-focus="support-method-wechat" data-support-method="wechat" aria-pressed="false" data-i18n="support.wechat">微信打赏</button><button id="support-method-alipay" class="support-method-option" data-focus="support-method-alipay" data-support-method="alipay" aria-pressed="false" data-i18n="support.alipay">支付宝打赏</button></div><img id="support-large-qr" alt="打赏二维码" data-i18n-alt="support.largeQr"><p data-i18n="support.scanHint">用手机扫一扫 · 按返回键关闭</p></div></div>
+      <div id="sms-qr-modal" class="search-scan-modal is-hidden" aria-hidden="true"><div class="search-scan-dialog" role="dialog" aria-modal="true" aria-labelledby="sms-qr-title"><h2 id="sms-qr-title" data-i18n="ui.scanSmsTitle">扫码填写短信 · 请手动发送</h2><div class="search-scan-qr-box"><img id="sms-qr-large" alt="收件号码与短信内容二维码" data-i18n-alt="account.smsQrAlt"></div><p class="search-scan-hint">用手机扫一扫 · 按返回键关闭</p><div class="search-scan-actions"><button id="sms-qr-close" class="search-scan-action sms-qr-action" data-focus="sms-qr-close" data-i18n="common.close">关闭</button></div></div></div>
 
       <section class="hero is-catalog-loading" id="hero" aria-label="推荐视频" data-i18n-aria-label="hero.recommendVideo">
         <div class="hero-media">
@@ -628,7 +611,6 @@
         </section>
         <div id="player-diagnostics-shade" class="diagnostic-shade is-hidden" aria-hidden="true"></div>
         <section class="player-options is-hidden" id="player-options" role="dialog" aria-modal="true" aria-labelledby="player-options-title"><div class="player-options-heading"><strong id="player-options-title"></strong><button class="player-option" id="player-options-close" data-focus="player-options-close" aria-label="关闭" data-i18n-aria-label="common.close">×</button></div><div id="player-options-list"></div><div id="player-diagnostics" class="is-hidden">
-          <section class="diagnostic-support" aria-labelledby="diagnostic-support-title"><span class="diagnostic-support-icon" aria-hidden="true"><svg><use href="#icon-heart" xlink:href="#icon-heart"></use></svg></span><div class="diagnostic-support-copy"><h3 id="diagnostic-support-title" data-i18n="support.diagnosticTitle">让红果持续变好</h3><p data-i18n="support.diagnosticDescription">如果红果给你带来了方便，欢迎请作者喝杯咖啡，支持持续维护。</p></div><button id="player-diagnostics-support" class="player-option diagnostic-support-action" data-focus="diagnostics-support" aria-haspopup="dialog" aria-controls="support-modal" data-i18n="support.author">支持作者</button></section>
           <div id="player-diagnostics-scroll" class="diagnostic-scroll" tabindex="0" data-focus="diagnostics-scroll" aria-label="诊断内容" data-i18n-aria-label="ui.diagnosticContent"><div id="player-diagnostics-guidance" class="diagnostic-guidance is-unknown">
   <section class="diagnostic-assessment" aria-labelledby="diagnostic-judgment-title">
     <div class="diagnostic-assessment-heading"><h3 id="diagnostic-judgment-title" data-i18n="diagnostic.guide.judgment">当前判断</h3><span id="player-diagnostics-state" class="diagnostic-state"></span></div>
@@ -695,7 +677,6 @@
   <script src="/episode-prefetch.js"></script>
   <script src="/end-recommendations.js"></script>
   <script src="/next-season-hint.js"></script>
-  <script src="/updates.js"></script>
   <script src="/engagement.js"></script>
   <script src="/danmaku-content.js"></script>
   <script src="/sms-verification.js"></script>
@@ -729,7 +710,6 @@
   <script src="/recommended-apps.js"></script>
   <script src="/windows-wasm-player.js"></script>
   <script src="/player-clock.js"></script>
-  <script src="/update-qr.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>

@@ -120,7 +120,6 @@
     });
     var help = doc.querySelector('.account-input-help');
     if (help) help.textContent = t('ui.desktopInputHelp', '直接输入或粘贴手机号和验证码；按 Tab 切换，按 Enter 提交。');
-    win.HongguoTVUpdates = createUpdateBridge(win, config);
     if (win.HongguoDesktopMiniPlayer) win.HongguoDesktopMini = win.HongguoDesktopMiniPlayer.create(win, config);
     win.HongguoDesktopWindow = createWindowMonitor(win, config);
     win.HongguoDesktopWindow.refresh();
@@ -152,32 +151,5 @@
     }
     return { refresh: refresh };
   }
-  function createUpdateBridge(win, config) {
-    var linux = config.platform === 'linux';
-    var status = { supported: config.platform !== 'preview' && !linux, desktop: true, state: linux ? 'unsupported' : 'idle', current_version: config.version,
-      message: linux ? t('ui.linuxManualUpdate', 'Linux 实验版请下载新版 AppImage 后手动替换。') : t('ui.updateDaily', '每天自动检查一次；下载 ZIP 后请自行解压替换。') };
-    var pending = false, allowed = false;
-    function app() { return win.go && win.go.main && win.go.main.desktopApp; }
-    function poll() {
-      if (pending || !app()) return;
-      pending = true;
-      Promise.resolve(app().GetUpdateStatus()).then(function (value) {
-        var next = JSON.parse(value); next.prompt_allowed = allowed;
-        if (linux && !next.supported) next.message = t('ui.linuxManualUpdate', 'Linux 实验版请下载新版 AppImage 后手动替换。');
-        status = next;
-      }).catch(function () { status.message = t('ui.updateUnavailable', '更新状态暂时不可用，请稍后重试。'); }).then(function () { pending = false; });
-    }
-    function invoke(method) {
-      var bridge = app(); if (!bridge) return;
-      Promise.resolve(bridge[method]()).then(poll).catch(function () { status.message = t('ui.updateFailed', '更新操作未能完成，请重试。'); });
-    }
-    return {
-      getStatus: function () { poll(); return JSON.stringify(status); },
-      setPromptAllowed: function (value) { allowed = !!value; status.prompt_allowed = allowed; },
-      check: function () { invoke('CheckUpdate'); },
-      download: function () { invoke('DownloadUpdate'); },
-      openFolder: function () { invoke('OpenUpdateFolder'); }
-    };
-  }
-  return { mediaSource: mediaSource, editing: editing, createPointerFocus: createPointerFocus, install: install, createUpdateBridge: createUpdateBridge, createWindowMonitor: createWindowMonitor };
+  return { mediaSource: mediaSource, editing: editing, createPointerFocus: createPointerFocus, install: install, createWindowMonitor: createWindowMonitor };
 }));

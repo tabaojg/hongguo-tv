@@ -7,10 +7,8 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"sync/atomic"
 	"time"
 
@@ -28,9 +26,11 @@ var startupHTML string
 // Set to the same version/commit as the bundled Go core by CI.
 var version = "desktop-dev"
 
+// Kept so existing build scripts can keep passing their version-code flag.
+var desktopVersionCode = "0"
+
 type desktopApp struct {
 	core          *coreHost
-	updater       *desktopUpdater
 	ctx           context.Context
 	exitConfirmed atomic.Bool
 	exitPending   atomic.Bool
@@ -42,11 +42,9 @@ func (a *desktopApp) startup(ctx context.Context) {
 	desktopObserveWindow()
 	configureDesktopMedia()
 	a.core.start()
-	go a.updater.automatic()
 }
 func (a *desktopApp) shutdown(ctx context.Context) {
 	desktopSetPlaybackAwake(false)
-	a.updater.close()
 	a.core.stop()
 }
 func (a *desktopApp) SetPlaybackAwake(active bool) { desktopSetPlaybackAwake(active) }
@@ -66,40 +64,6 @@ func (a *desktopApp) GetWindowState() string {
 	b, _ := json.Marshal(state)
 	return string(b)
 }
-func (a *desktopApp) OpenDownloads() {
-	wruntime.BrowserOpenURL(a.ctx, "https://github.com/aston314/hongguo-tv/releases")
-}
-func (a *desktopApp) GetUpdateStatus() string {
-	b, _ := json.Marshal(a.updater.snapshot())
-	return string(b)
-}
-func (a *desktopApp) CheckUpdate()    { a.updater.check() }
-func (a *desktopApp) DownloadUpdate() { a.updater.download() }
-func (a *desktopApp) OpenUpdateFolder() {
-	status := a.updater.snapshot()
-	if status.State != "ready" || status.File == "" {
-		return
-	}
-	// The folder opener only receives a path produced by this updater.
-	directory := filepath.Dir(status.File)
-	var cmd *exec.Cmd
-	if runtime.GOOS == "windows" {
-		cmd = exec.Command("explorer.exe", directory)
-	} else if runtime.GOOS == "linux" {
-		cmd = exec.Command("xdg-open", directory)
-	} else {
-		cmd = exec.Command("/usr/bin/open", directory)
-	}
-	configureProcess(cmd)
-	go func() {
-		if err := cmd.Run(); err != nil {
-			a.updater.mu.Lock()
-			a.updater.status.Message = "无法打开文件夹，ZIP 已保存在下载目录。"
-			a.updater.mu.Unlock()
-		}
-	}()
-}
-
 func (a *desktopApp) FinishExit() {
 	if !a.exitConfirmed.Swap(true) {
 		desktopSetPlaybackAwake(false)
@@ -139,15 +103,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	downloads, err := downloadDirectory()
-	if err != nil {
-		log.Fatal(err)
-	}
-	code, err := strconv.Atoi(desktopVersionCode)
-	if err != nil {
-		log.Fatal(err)
-	}
-	app := &desktopApp{core: newCoreHost(), updater: newDesktopUpdater(code, dataDir, downloads, desktopPlatform())}
+	app := &desktopApp{core: newCoreHost()}
 	err = wails.Run(desktopOptions(app, dataDir))
 	if err != nil {
 		app.core.stop()

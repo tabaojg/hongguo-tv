@@ -362,14 +362,6 @@ html.android-shell #playback-command-menu { display: none !important; }
 .player-options.is-diagnostics .player-options-heading { flex: 0 0 auto; margin-bottom: 8px; }
 .player-options.is-diagnostics #player-options-close, .player-options.is-diagnostics #player-options-message { display: none; }
 #player-diagnostics { display: flex; flex: 1 1 auto; flex-direction: column; min-height: 0; }
-.diagnostic-support { display: flex; flex: 0 0 auto; align-items: center; margin: 4px 0 12px; padding: 16px 18px; color: #fff1f5; background: #352630; border: 1px solid #754151; border-radius: 10px; }
-.diagnostic-support-icon { display: flex; flex: 0 0 42px; align-items: center; justify-content: center; width: 42px; height: 42px; margin-right: 14px; color: #fa8ba4; background: #51313e; border-radius: 12px; }
-.diagnostic-support-icon svg { display: block; width: 24px; height: 24px; fill: none; }
-.diagnostic-support-copy { flex: 1 1 auto; min-width: 0; }
-.diagnostic-support-copy h3 { margin: 0 0 5px; font-size: 18px; line-height: 1.35; font-weight: 600; }
-.diagnostic-support-copy p { max-width: 500px; margin: 0; color: #e2c8d1; font-size: 14px; line-height: 1.55; }
-.diagnostic-support-action { flex: 0 0 auto; margin-left: 20px; padding: 10px 18px; color: #fff1f5; background: #83394e; border: 1px solid #be647b; }
-.diagnostic-support-action.is-focused, .diagnostic-support-action:focus:not(.pointer-focus-muted) { background: #9b455e; }
 .diagnostic-shade { position: fixed; z-index: 150; top: 0; right: 0; bottom: 0; left: 0; background: rgba(0,0,0,.72); }
 .diagnostic-scroll { flex: 1 1 auto; min-height: 0; max-height: 520px; padding: 8px 10px; box-sizing: border-box; overflow-y: auto; border: 2px solid transparent; border-radius: 8px; }
 .diagnostic-scroll:focus:not(.pointer-focus-muted), .diagnostic-scroll.is-focused { outline: none; border-color: #fff; }
@@ -399,9 +391,6 @@ html.android-shell #playback-command-menu { display: none !important; }
   .player-options.is-diagnostics .diagnostic-row { flex-basis: 100%; width: 100%; }
 }
 @media (max-height: 600px) {
-  .diagnostic-support { padding: 10px 14px; margin-bottom: 8px; }
-  .diagnostic-support-copy h3 { font-size: 16px; margin-bottom: 3px; }
-  .diagnostic-support-copy p { font-size: 13px; }
   .diagnostic-assessment { padding: 10px 12px; }
   #player-diagnostics-summary { font-size: 18px; }
   .diagnostic-suggestions, .diagnostic-evidence { padding: 10px 12px; }
@@ -887,7 +876,7 @@ html.android-shell #playback-command-menu { display: none !important; }
 .account-heading p, .account-card p, .settings-card p { color: #a9a9b5; line-height: 1.6; }
 .account-layout { display: flex; gap: 1.5rem; max-width: 70rem; margin-top: 2rem; }
 .account-card, .settings-card { flex: 1; min-width: 0; padding: 2rem; border: 1px solid #30303a; border-radius: 1rem; background: #181820; }
-.app-update-card { max-width: 70rem; margin-top: 1.5rem; }
+.settings-panel-card { max-width: 70rem; margin-top: 1.5rem; }
 .app-update-actions { display: flex; flex-wrap: wrap; }
 .app-update-actions button { margin: 0 .8rem .6rem 0; }
 .system-announcement { padding: .9rem 0 1rem; border-top: 1px solid rgba(255,255,255,.1); }
@@ -1022,53 +1011,9 @@ html.android-shell #playback-command-menu { display: none !important; }
 /* Public interaction statistics share the current episode; no extra focus nodes. */
 .round-action .action-count { display: block; margin-top: 3px; font-size: 19px; font-weight: 600; line-height: 1.15; font-variant-numeric: tabular-nums; }
 .right-actions { top: 50%; transform: translateY(-50%); gap: 12px; }
-.support-page { display: flex; flex-direction: column; align-items: center; padding-top: 28px; }
-.support-heading { width: 100%; max-width: 980px; text-align: center; }
-.support-kicker { display: block; margin-bottom: 10px; color: #f58ca2; font-size: 14px; letter-spacing: .12em; }
-.support-heading h1 { font-size: 34px; }
-.support-heading p { margin: 14px 0 0; color: #b9bac6; font-size: 17px; line-height: 1.75; }
-.support-methods { display: flex; align-items: stretch; width: 100%; max-width: 940px; margin-top: 28px; }
-.support-card { display: flex; flex: 1 1 0; flex-direction: column; align-items: center; min-width: 0; padding: 20px; text-align: center; background: #1d1e27; border: 1px solid #33343f; border-radius: 22px; }
-.support-card + .support-card { margin-left: 26px; }
-.support-card.is-focused, .support-card:focus:not(.pointer-focus-muted) { box-shadow: 0 0 0 3px #fff, 0 16px 36px rgba(0,0,0,.25); background: #272832; }
-.support-card-head { display: flex; align-items: center; width: 100%; margin-bottom: 16px; }
-.support-card-head h2 { margin: 0; font-size: 20px; }
-.support-card-head > span:last-child { margin-left: auto; color: #9294a5; font-size: 12px; }
-.support-method-dot { width: 10px; height: 10px; flex: 0 0 10px; margin-right: 10px; border-radius: 50%; }
-.support-method-wechat { background: #0abb62; }
-.support-method-alipay { background: #1976ff; }
-.support-qr-frame { width: 100%; height: 340px; }
-.support-qr-frame img { display: block; width: auto; height: 100%; max-width: 100%; margin: auto; object-fit: contain; border-radius: 10px; }
-.support-card > p { margin: 16px 0 0; color: #d0d1dc; font-size: 15px; }
-.support-thanks { margin: 24px 0 0; color: #9395a5; font-size: 14px; }
-.support-modal { position: absolute; z-index: 25; top: 0; right: 0; bottom: 0; left: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.86); padding: 18px; }
-.support-modal.is-diagnostic-support { position: fixed; z-index: 152; }
-.support-modal.is-diagnostic-support .support-modal-panel { min-width: 360px; max-width: 100%; }
-.support-modal-methods { display: flex; margin: 0 0 14px; padding: 4px; }
-.support-method-option { flex: 1 1 0; min-height: 42px; padding: 8px 14px; border: 1px solid #4a4b57; border-radius: 8px; color: #dddde6; background: #343540; }
-.support-method-option + .support-method-option { margin-left: 12px; }
-.support-method-option.is-selected { color: #fff; background: #73364b; border-color: #be647b; }
-.support-method-option.is-focused, .support-method-option:focus:not(.pointer-focus-muted) { outline: none; box-shadow: 0 0 0 3px #fff; }
-.support-modal.is-diagnostic-support .support-modal-panel > img { height: calc(100vh - 240px); }
-.support-modal-panel { max-height: 100%; padding: 18px 22px; background: #1d1e27; border: 1px solid #3c3d49; border-radius: 20px; }
-.support-modal-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-.support-modal-heading h2 { margin: 0 35px 0 0; font-size: 22px; }
-.support-close { padding: 10px 20px; background: #363742; border-radius: 10px; }
-.support-close.is-focused, .support-close:focus:not(.pointer-focus-muted) { box-shadow: 0 0 0 3px #fff; }
-.support-modal-panel > img { display: block; width: auto; height: calc(100vh - 180px); max-width: 100%; margin: auto; border-radius: 8px; }
-.support-modal-panel > p { margin: 14px 0 0; color: #aaaebc; text-align: center; font-size: 14px; }
 @media (max-height: 800px) {
-  .support-page { padding-top: 18px; }
-  .support-heading h1 { font-size: 28px; }
-  .support-heading p { margin-top: 10px; font-size: 15px; }
-  .support-methods { margin-top: 20px; max-width: 810px; }
-  .support-card { padding: 15px 18px; border-radius: 18px; }
-  .support-card-head { margin-bottom: 12px; }
-  .support-qr-frame { height: 266px; }
-  .support-card > p { margin-top: 12px; }
-  .support-thanks { margin-top: 16px; }
 }
-.app-shell[data-mode="support"] .top-bar, .app-shell[data-mode="account"] .top-bar { background: #111217; }
+.app-shell[data-mode="account"] .top-bar { background: #111217; }
 
 /* In native Android playback the Media3/MPV surface is behind the WebView. Keep
    the HTML shell transparent only where the video is painted; sidebar and
@@ -1217,9 +1162,6 @@ html.native-playback .hero-video { display: none !important; }
 @media (max-width: 700px) { .follow-heading, .follow-notification-heading { align-items: flex-start; flex-direction: column; } .follow-title-line, .library-title-line { align-items: flex-start; flex-direction: column; gap: 8px; } .follow-tabs, .library-tabs { gap: 18px; } .follow-actions { width: 100%; } .follow-actions .follow-action { flex: 1 1 auto; } .notification-popup { right: 14px; bottom: 14px; width: calc(100% - 28px); } }
 @media (max-width: 1400px) { .follow-notification-play-content { grid-template-columns: 98px minmax(0, 1fr) auto; gap: 12px; } .follow-notification-image { width: 98px; height: 132px; } }
 @media (max-width: 700px) { .follow-notification-row { grid-template-columns: minmax(0, 1fr); gap: 8px; } .follow-notification-play { min-height: 100px; } .follow-notification-play-content { grid-template-columns: 76px minmax(0, 1fr); gap: 12px; } .follow-notification-image { width: 76px; height: 100px; } .follow-notification-time { grid-column: 2; } .follow-notification-detail { justify-self: end; } }
-.desktop-update-notes { max-width: 70rem; margin: 1rem 0; white-space: pre-wrap; overflow-wrap: break-word; font: inherit; color: #bfc1ce; line-height: 1.6; }
-.webos-update-notes { max-height: 18rem; overflow-y: auto; padding: 14px; border: 2px solid #424450; border-radius: 8px; }
-.webos-update-notes.is-focused, .webos-update-notes:focus { outline: none; border-color: #fff; }
 
 .account-login-methods { display: flex; flex-wrap: wrap; margin: 0 0 1.5rem; }
 .account-login-methods .account-action { margin: 0 .8rem .5rem 0; }

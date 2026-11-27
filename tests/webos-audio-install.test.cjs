@@ -114,7 +114,7 @@ function pageFixture(f,webosShell=true){
  c.window.HongguoDesktop={platform:'preview'};
  vm.runInNewContext(source.slice(source.indexOf('  function hasDesktopFullscreenWindow('),source.indexOf('  function setCinema(')),c);
  vm.runInNewContext(source.slice(a,source.indexOf('  function updatePlaybackControls(',a)),c);
- const settings=source.indexOf('  var webosAudio = webosShell');vm.runInNewContext(source.slice(settings,source.indexOf('  var licenses =',settings)),c);
+ const settings=source.indexOf('  var webosAudio = webosShell');vm.runInNewContext(source.slice(settings,source.indexOf('  updateFollowNotificationAccess();',settings)),c);
  const listener=source.indexOf("  media.addEventListener('webosaudioenabledchange'");vm.runInNewContext(source.slice(listener,source.indexOf("  media.addEventListener('ratechange'",listener)),c);
  return {c,elements,speed,get saved(){return saved;},get updates(){return updates;},get focus(){return focus;},get closed(){return closed;}};
 }
@@ -149,9 +149,9 @@ test('the actual webOS speed menu accepts remote selection after opt-in and uses
  const list=p.elements['player-options-list'];assert.equal(list.children.length,6);assert.equal(p.focus.textContent,'1x');
  const option=list.children.find(n=>n.textContent==='1.5x');option.events.click();assert.equal(f.video.playbackRate,1.5);assert.equal(f.video.nativeRate,1);assert.equal(p.c.playbackPreferences.speed,1.5);assert.equal(p.saved,1);assert.equal(p.closed,1);f.api.choose(false);
 });
-test('actual remote focus graph enters the experiment and returns from update controls',()=>{
- const cinema={},audio={},updates={},sidebar={};const c={coreConnectionModalOpen:false,scanModalOpen:()=>false,supportModalOpen:false,confirmOpen:false,rankFilterOpen:false,playerOptionsOpen:false,detailModalOpen:false,discussionOpen:false,
- zoneOf:n=>n===cinema?'autoCinema':n===audio?'webosAudio':'appUpdates',firstVisible:s=>({'.webos-audio-action':audio,'.auto-cinema-action':cinema,'.app-update-action':updates})[s]||null,activeSidebar:()=>sidebar};
+test('actual remote focus graph enters the experiment and returns to settings',()=>{
+ const cinema={},audio={},sidebar={};const c={coreConnectionModalOpen:false,scanModalOpen:()=>false,smsQROpen:false,confirmOpen:false,rankFilterOpen:false,playerOptionsOpen:false,detailModalOpen:false,discussionOpen:false,
+ zoneOf:n=>n===cinema?'autoCinema':n===audio?'webosAudio':null,firstVisible:s=>({'.webos-audio-action':audio,'.auto-cinema-action':cinema})[s]||null,activeSidebar:()=>sidebar,selectedSidebarDisplay:()=>null};
  const a=source.indexOf('  function moveFrom(');vm.runInNewContext(source.slice(a,source.indexOf('  function accountKeypadOpen(',a)),c);
- assert.equal(c.moveFrom(cinema,'down'),audio);assert.equal(c.moveFrom(audio,'up'),cinema);assert.equal(c.moveFrom(audio,'down'),updates);assert.equal(c.moveFrom(updates,'up'),audio);assert.equal(c.moveFrom(audio,'left'),sidebar);
+ assert.equal(c.moveFrom(cinema,'down'),audio);assert.equal(c.moveFrom(audio,'up'),cinema);assert.equal(c.moveFrom(audio,'down'),sidebar);assert.equal(c.moveFrom(audio,'left'),sidebar);
 });

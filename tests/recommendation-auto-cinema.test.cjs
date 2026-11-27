@@ -97,7 +97,7 @@ function playbackFixture(flags = {}) {
     applicationHidden: () => state.hidden,
     coreConnectionModalOpen: false,
     scanModalOpen: () => false,
-    supportModalOpen: false,
+    smsQROpen: false,
     accountCountryModalOpen: false,
     accountKeypadOpen: () => false,
     detailModalOpen: false,
@@ -172,7 +172,7 @@ test('paused, preparing, buffering, failed or background playback cannot auto fu
 });
 
 test('sidebar focus and modal interaction do not enter fullscreen', () => {
-  for (const key of ['coreConnectionModalOpen', 'supportModalOpen', 'accountCountryModalOpen', 'detailModalOpen',
+  for (const key of ['coreConnectionModalOpen', 'smsQROpen', 'accountCountryModalOpen', 'detailModalOpen',
     'actorWorksOpen', 'detailCastOpen', 'rankFilterOpen', 'confirmOpen', 'playerOptionsOpen', 'playbackCommandMenuOpen', 'discussionOpen']) {
     const f = playbackFixture(); f.context[key] = true; f.context.hideControls();
     assert.equal(f.classes.has('is-cinema'), false, key);
@@ -193,7 +193,7 @@ test('the new settings toggle has a two-way remote path without changing other p
       coreConnectionModalOpen: false,
       endRecommendations: null,
       detailModalOpen: false, actorWorksOpen: false, confirmOpen: false, playerOptionsOpen: false,
-      discussionOpen: false, accountCountryModalOpen: false, supportModalOpen: false, rankFilterOpen: false,
+      discussionOpen: false, accountCountryModalOpen: false, smsQROpen: false, rankFilterOpen: false,
       scanModalOpen: () => false, accountKeypadOpen: () => false,
       zoneOf: node => node.zone,
       firstVisible: selector => selectors.has(selector) ? selector : null,

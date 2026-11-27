@@ -39,15 +39,6 @@ test('desktop search Escape closes suggestions and keyboard arrows reach suggest
  assert.equal(c.focused.at(-1),'search-submit');assert.equal(prevented,1);assert.equal(stopped,1);
 });
 
-test('desktop update bridge reads async status and calls only download/folder bindings',async()=>{
- const {createUpdateBridge}=require('../core/cmd/hongguotv/ui/desktop.js');const calls=[];
- const win={go:{main:{desktopApp:{GetUpdateStatus:async()=>JSON.stringify({desktop:true,supported:true,state:'available',latest_code:2}),CheckUpdate:async()=>calls.push('check'),DownloadUpdate:async()=>calls.push('download'),OpenUpdateFolder:async()=>calls.push('folder')}}}};
- const bridge=createUpdateBridge(win,{platform:'darwin',version:'0.2.59'});
- bridge.setPromptAllowed(false);bridge.getStatus();await new Promise(r=>setImmediate(r));assert.equal(JSON.parse(bridge.getStatus()).prompt_allowed,false);
- bridge.check();bridge.download();bridge.openFolder();await new Promise(r=>setImmediate(r));assert.deepEqual(calls,['check','download','folder']);
- bridge.setPromptAllowed(true);assert.equal(JSON.parse(bridge.getStatus()).prompt_allowed,true);
-});
-
 test('native desktop window state ignores transient WebView hiding, but minimisation still pauses once',async()=>{
  const {createWindowMonitor}=require('../core/cmd/hongguotv/ui/desktop.js');let hidden=false,fullscreen=false,pauses=0,resumes=0;const fullscreens=[];
  const config={platform:'darwin'};

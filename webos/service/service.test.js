@@ -12,7 +12,6 @@ var activityCalls = [];
 var libraryChanges = [];
 var prepareRequests = [];
 var cacheSessionRequests = [];
-var updateChecks = 0;
 var luna = {
   activityManager: {
     create: function (name, callback) { activityCalls.push('create:' + name); callback({ id: 'activity-1' }); },
@@ -73,8 +72,7 @@ account.recommend = function (query) {
   return Promise.resolve({ items: [{ series_id: '45', title: '追更剧' }], channel: query.channel });
 };
 var numberInput = createNumberInput({ selectIP: function () { return '127.0.0.1'; }, ttl: 30000 });
-var service = createService({ announcements: {active:function(){return Promise.resolve([]);}}, service: luna, provider: provider, account: account, numberInput: numberInput, port: 0,
-  updates: { check: function () { updateChecks++; return Promise.resolve({ schema: 1, platform: 'webos', version_name: '0.2.118' }); } } });
+var service = createService({ announcements: {active:function(){return Promise.resolve([]);}}, service: luna, provider: provider, account: account, numberInput: numberInput, port: 0 });
 var registry = require('./services.json');
 
 function invoke(name) {
@@ -120,11 +118,6 @@ async function run() {
   assert.strictEqual(JSON.parse(status.body).ok, true);
   assert.strictEqual(JSON.parse(status.body).ready, true);
   assert.strictEqual(status.headers['access-control-allow-origin'], 'null');
-  var update = await request('GET', '/api/v1/webos/update');
-  assert.strictEqual(JSON.parse(update.body).data.version_name, '0.2.118');
-  assert.strictEqual(updateChecks, 1);
-  assert.strictEqual((await request('POST', '/api/v1/webos/update')).status, 405);
-
   var preflight = await request('OPTIONS', '/api/v1/library', {
     Origin: 'null',
     'Access-Control-Request-Method': 'POST',

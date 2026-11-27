@@ -53,7 +53,7 @@ test('Back exits sidebar-free playback, reveals controls and focuses the active 
       danmakuScanOpen: false,
       accountCountryModalOpen: false,
       accountKeypadOpen: () => false,
-      supportModalOpen: false,
+      smsQROpen: false,
       followNotificationViewOpen: false,
       rankFilterOpen: false,
       actorWorksOpen: false,
@@ -86,9 +86,7 @@ test('Back exits sidebar-free playback, reveals controls and focuses the active 
   }
 });
 
-test('version update settings are the last settings card', () => {
-  const settings = html.slice(html.indexOf('id="settings-page"'), html.indexOf('id="support-page"'));
-  const cards = [...settings.matchAll(/<div class="settings-card app-update-card(?: is-hidden)?" id="([^"]+)"/g)].map(match => match[1]);
-  assert.equal(cards[cards.length - 1], 'app-update-card');
-  assert.equal(cards.filter(id => id === 'app-update-card').length, 1);
+test('settings page no longer exposes app updates', () => {
+  assert.doesNotMatch(html, /id="app-update-card"/);
+  assert.doesNotMatch(html, /id="update-qr-modal"/);
 });

@@ -72,12 +72,6 @@
     diagnostics: function () { return JSON.stringify({ platform: 'webos', experimental: true, playback_verified: false,
       webos_audio: window.HongguoWebOSAudio ? window.HongguoWebOSAudio.diagnostics() : null }); }
   };
-  window.HongguoTVUpdates = {
-    getStatus: function () { return JSON.stringify({ supported: false, state: 'unsupported', message: 'webOS 实验版暂未接入在线更新' }); },
-    check: function () {},
-    download: function () {}
-  };
-
   var serviceWake = null;
   var cacheSession = '', cacheOpen = null, cacheQueue = Promise.resolve();
   var cacheRevision = 0, cacheToken = '', cacheElement = null, pageClosed = false;
@@ -249,33 +243,6 @@
   window.HongguoWebOS.wakeService = wakeService;
   window.HongguoWebOS.getDiagnostics = function () { return JSON.stringify(serviceDiagnostic); };
   window.HongguoWebOS.getDiagnostic = function () { return Object.assign({}, serviceDiagnostic); };
-  if (window.HongguoWebOSUpdates) {
-    var updateStorage;
-    try { updateStorage = window.localStorage; } catch (ignoredUpdateStorage) {}
-    window.HongguoTVUpdates = window.HongguoWebOSUpdates.create({
-      version: window.HongguoWebOS.appVersion,
-      storage: updateStorage,
-      text: function (key, fallback, params) {
-        return window.HongguoI18n && window.HongguoI18n.t ? window.HongguoI18n.t(key, params, fallback) : fallback.replace(/\{version\}/g, params && params.version || '');
-      },
-      check: function () {
-        return wakeService().then(function () {
-          if (pageClosed) throw new Error('Application closed');
-          return rawFetch.call(window, SERVICE_BASE + '/api/v1/webos/update', { cache: 'no-store' });
-        }).then(function (response) {
-          if (!response || !response.ok) throw new Error('Update check failed');
-          return response.json();
-        }).then(function (payload) {
-          if (!payload || !payload.ok) throw new Error('Update check failed');
-          return payload.data;
-        });
-      }
-    });
-  }
-  function checkUpdatesAutomatically() {
-    if (!pageClosed && !document.hidden && window.HongguoTVUpdates.automatic) window.HongguoTVUpdates.automatic();
-  }
-  if (window.HongguoTVUpdates.automatic) window.setTimeout(checkUpdatesAutomatically, 5000);
   wakeService().catch(function () {});
   syncCacheSession();
 
@@ -285,7 +252,6 @@
         serviceWake = null;
         wakeService().catch(function () {});
         syncCacheSession();
-        checkUpdatesAutomatically();
       }
     });
   }
@@ -294,7 +260,6 @@
     if (!pageClosed) return;
     pageClosed = false;
     syncCacheSession();
-    checkUpdatesAutomatically();
   });
 
   if (rawXHROpen && rawXHRSend) {

@@ -68,7 +68,6 @@ public class MainActivity extends Activity {
     private int routedHorizontalKeys;
     private int routedConfirmKeys;
     private AnimatedVectorDrawable startupAnimation;
-    private AppUpdater appUpdater;
     private RecommendedApps recommendedApps;
     private TvHomeChannelManager homeChannelManager;
     private String pendingHomeProgram;
@@ -144,16 +143,6 @@ public class MainActivity extends Activity {
         webView.addJavascriptInterface(new PlaybackPreferences(this), "HongguoTVPreferences");
         webView.addJavascriptInterface(new InputBridge(), "HongguoTVInput");
         webView.addJavascriptInterface(new HomeChannelBridge(), "HongguoTVHome");
-        appUpdater = new AppUpdater(this, new AppUpdater.Host() {
-            public boolean trusted() { return pageReady; }
-            public boolean foreground() { return activityForeground; }
-            public void restoreFocus() { if (!destroyed && webView != null) { grantWebViewFocus(false); scheduleFullscreen(); } }
-            public void allowPrompt(AppUpdater.PromptCheck check) {
-                if (!pageReady || webView == null) { check.result(false); return; }
-                webView.evaluateJavascript("!!(window.HongguoTV && window.HongguoTV.canShowAppUpdate())", result -> check.result("true".equals(result)));
-            }
-        });
-        webView.addJavascriptInterface(appUpdater.new Bridge(), "HongguoTVUpdates");
         recommendedApps = new RecommendedApps(this, new RecommendedApps.Host() {
             public boolean trusted() { return pageReady && !destroyed; }
             public boolean foreground() { return activityForeground; }
@@ -202,9 +191,8 @@ public class MainActivity extends Activity {
                     startupAnimation.stop();
                     pageReady = true;
                     grantWebViewFocus(false);
-                    appUpdater.start();
                     if (BuildConfig.ANDROID5_COMPAT) {
-                        view.evaluateJavascript("!!(window.HongguoTV && typeof window.HongguoTV.remoteKey === 'function' && JSON.parse(window.HongguoTVDiagnostics.readDevice()).sdk >= 21 && document.activeElement && document.activeElement.getAttribute('data-focus') && JSON.parse(window.HongguoTVUpdates.getStatus()).variant === 'android5')",
+                        view.evaluateJavascript("!!(window.HongguoTV && typeof window.HongguoTV.remoteKey === 'function' && JSON.parse(window.HongguoTVDiagnostics.readDevice()).sdk >= 21 && document.activeElement && document.activeElement.getAttribute('data-focus'))",
                                 result -> android.util.Log.i("HongguoAndroid5", "ui_ready=" + result));
                     }
                     homeChannelManager.ensureDefaultChannel(true);
@@ -310,7 +298,6 @@ public class MainActivity extends Activity {
         searchInputFocusPolicy.reset();
         routedVerticalKeys = routedHorizontalKeys = routedConfirmKeys = 0;
         if (startupThread != null) { startupThread.interrupt(); startupThread = null; }
-        if (appUpdater != null) { appUpdater.destroy(); appUpdater = null; }
         if (exitDialog != null) { exitDialog.dismiss(); exitDialog = null; }
         InputMethodManager keyboard = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
         if (keyboard != null) keyboard.hideSoftInputFromWindow(getWindow().getDecorView().getWindowToken(), 0);
@@ -737,7 +724,6 @@ public class MainActivity extends Activity {
 
     private void requestPageBack() {
         if (backPending || isFinishing()) return;
-        if (appUpdater != null && appUpdater.back()) return;
         if (exitDialog != null && exitDialog.isShowing()) {
             exitDialog.cancel();
             return;
@@ -805,7 +791,6 @@ public class MainActivity extends Activity {
             webView.evaluateJavascript("window.HongguoTV && window.HongguoTV.resumeFromBackground()", null);
         }
         if (playerBridge != null) playerBridge.onResume();
-        if (appUpdater != null) appUpdater.resume();
         if (recommendedApps != null) recommendedApps.resume();
         recoverRendererIfAllowed();
     }
@@ -813,7 +798,6 @@ public class MainActivity extends Activity {
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (appUpdater != null) appUpdater.onRequestPermissionsResult(requestCode);
     }
 
     @Override
@@ -823,7 +807,6 @@ public class MainActivity extends Activity {
         playbackPageActive = false;
         inputEditingState.reset();
         searchNavigationState.reset();
-        if (appUpdater != null) appUpdater.destroy();
         if (recommendedApps != null) recommendedApps.destroy();
         if (homeChannelManager != null) {
             homeChannelManager.destroy();

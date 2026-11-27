@@ -60,12 +60,9 @@
     accountInputs: '.account-input',
     accountKeypad: '.account-keypad-key',
     accountActions: '.account-action',
-    appUpdates: '.app-update-action',
-    updateQR: '.update-qr-action',
     repairSettings: '.repair-action',
     announcements: '.announcement-action',
     recommendedApps: '.recommended-app-action',
-    webosUpdateNotes: '.webos-update-notes',
     localeActions: '.locale-action',
     recommendationDirection: '.recommendation-direction-action',
     sidebarDisplay: '.sidebar-display-action',
@@ -78,7 +75,7 @@
     danmakuSize: '.danmaku-size-action',
     episodePrefetch: '.episode-prefetch-action',
     playbackModes: '.playback-mode-action',
-    support: '.support-card, .support-close, .support-method-option',
+    smsQR: '.sms-qr-action',
     rankModal: '.rank-filter-option, .rank-filter-close, .rank-filter-apply',
     actorWorks: '.actor-works-close, .actor-works-retry, .actor-work-card',
     detailHeaderActions: '.detail-header-action, #detail-close, .detail-cast-more',
@@ -243,8 +240,8 @@
   var danmakuScanOpen = false;
   var searchScanReturnFocus = null;
   var danmakuScanReturnFocus = null;
-  var updateQROpen = false;
-  var updateQRReturnFocus = null;
+  var smsQROpen = false;
+  var smsQRReturnFocus = null;
   var searchHistory;
   var searchDiscovery;
   var searchDiscoveryData = { guesses: [], boards: [] };
@@ -253,9 +250,6 @@
   var accountKeypadReturnFocus = null;
   var accountKeypadPhase = '';
   var mainSurface = document.getElementById('main-surface');
-  var supportPage = document.getElementById('support-page');
-  var supportModalOpen = false;
-  var supportReturnFocus = null;
   var engagement;
   var pagePlaceholder = document.getElementById('page-placeholder');
   var detailModal = document.getElementById('detail-modal');
@@ -583,12 +577,12 @@
         pageMode() === 'player' && playback.completed && document.getElementById('hero-video').ended && !applicationInBackground && !applicationHidden());
     },
     canPresent: function () {
-      return !scanModalOpen() && !accountKeypadOpen() && !supportModalOpen && !rankFilterOpen && !(typeof actorWorksOpen !== 'undefined' && actorWorksOpen) && !confirmOpen &&
+      return !scanModalOpen() && !accountKeypadOpen() && !smsQROpen && !rankFilterOpen && !(typeof actorWorksOpen !== 'undefined' && actorWorksOpen) && !confirmOpen &&
         !detailModalOpen && !playerOptionsOpen && !(typeof playbackCommandMenuOpen !== 'undefined' && playbackCommandMenuOpen) && !discussionOpen && zoneOf(document.activeElement) === 'feed';
     },
     canAutoplay: function () {
       var track = document.getElementById('end-recommendations-track');
-      return !scanModalOpen() && !accountKeypadOpen() && !supportModalOpen && !rankFilterOpen && !(typeof actorWorksOpen !== 'undefined' && actorWorksOpen) && !confirmOpen &&
+      return !scanModalOpen() && !accountKeypadOpen() && !smsQROpen && !rankFilterOpen && !(typeof actorWorksOpen !== 'undefined' && actorWorksOpen) && !confirmOpen &&
         !detailModalOpen && !playerOptionsOpen && !(typeof playbackCommandMenuOpen !== 'undefined' && playbackCommandMenuOpen) && !discussionOpen && (!document.hasFocus || document.hasFocus()) && document.activeElement === track.children[0];
     },
     now: function () { return window.performance && typeof window.performance.now === 'function' ? window.performance.now() : Date.now(); },
@@ -1182,7 +1176,7 @@
 
   function openPlaybackCommandMenu(focusAction, preserveReturnFocus) {
     if (androidShell) return false;
-    if (!playbackCommandMenuAvailable() || !playbackCommandMenu || detailModalOpen || confirmOpen || discussionOpen || supportModalOpen || rankFilterOpen || detailCastOpen || playerOptionsOpen || scanModalOpen() || (typeof actorWorksOpen !== 'undefined' && actorWorksOpen) || (endRecommendations && endRecommendations.isOpen())) return false;
+    if (!playbackCommandMenuAvailable() || !playbackCommandMenu || detailModalOpen || confirmOpen || discussionOpen || smsQROpen || rankFilterOpen || detailCastOpen || playerOptionsOpen || scanModalOpen() || (typeof actorWorksOpen !== 'undefined' && actorWorksOpen) || (endRecommendations && endRecommendations.isOpen())) return false;
     if (playbackCommandMenuOpen) return true;
     if (!preserveReturnFocus) {
       playbackCommandMenuReturnFocus = remoteFocusTarget() || document.activeElement;
@@ -1201,7 +1195,7 @@
   }
 
   function focusAndroidPlaybackControls() {
-    if (!androidShell || !playbackCommandMenuAvailable() || detailModalOpen || confirmOpen || discussionOpen || supportModalOpen || rankFilterOpen || detailCastOpen || playerOptionsOpen || scanModalOpen() || (typeof actorWorksOpen !== 'undefined' && actorWorksOpen) || (endRecommendations && endRecommendations.isOpen())) return false;
+    if (!androidShell || !playbackCommandMenuAvailable() || detailModalOpen || confirmOpen || discussionOpen || smsQROpen || rankFilterOpen || detailCastOpen || playerOptionsOpen || scanModalOpen() || (typeof actorWorksOpen !== 'undefined' && actorWorksOpen) || (endRecommendations && endRecommendations.isOpen())) return false;
     revealControls();
     var current = remoteFocusTarget() || document.activeElement;
     var target = current && zoneOf(current) === 'controls' && !current.classList.contains('is-hidden') && current.getClientRects().length ? current : null;
@@ -1247,7 +1241,7 @@
     else if (scanModalOpen()) { if (!element.closest('#search-scan-modal')) return false; }
     else if (accountCountryModalOpen) { if (!element.closest('#account-country-modal')) return false; }
     else if (accountKeypadOpen()) { if (!element.closest('#account-keypad-modal')) return false; }
-    else if (supportModalOpen) { if (!element.closest('#support-modal')) return false; }
+    else if (smsQROpen) { if (!element.closest('#sms-qr-modal')) return false; }
     else if (rankFilterOpen) { if (!element.closest('#rank-filter-modal')) return false; }
     else if (typeof actorWorksOpen !== 'undefined' && actorWorksOpen) { if (!element.closest('#actor-works-modal')) return false; }
     else if (detailCastOpen) { if (!element.closest('#detail-cast-modal')) return false; }
@@ -1322,7 +1316,6 @@
     if (element.id === 'core-connection-scroll' || element.classList.contains('core-connection-action')) return 'coreConnection';
     if (element.id === 'core-status') return 'channels';
     if (element.classList.contains('end-recommendation-card') || element.id === 'end-recommendations-close') return 'endRecommendations';
-    if (element.classList.contains('update-qr-action')) return 'updateQR';
     if (element.classList.contains('search-scan-action')) return 'searchScan';
     if (element.classList.contains('search-history-action')) return 'searchHistory';
     if (element.classList.contains('search-guess')) return 'searchGuesses';
@@ -1332,7 +1325,7 @@
     if (element.classList.contains('account-keypad-key')) return 'accountKeypad';
     if (element.classList.contains('account-country-button')) return 'accountCountry';
     if (element.classList.contains('account-country-item') || element.classList.contains('account-country-close')) return 'accountCountryItems';
-    if (element.classList.contains('support-card') || element.classList.contains('support-close') || element.classList.contains('support-method-option')) return 'support';
+    if (element.classList.contains('sms-qr-action')) return 'smsQR';
     if (element.classList.contains('recommended-app-action')) return 'recommendedApps';
     if (element.classList.contains('discussion-item') || element.classList.contains('discussion-close')) return 'discussion';
     if (element.classList.contains('side-item') || element.classList.contains('watching-return')) return 'sidebar';
@@ -1384,7 +1377,6 @@
     if (element.classList.contains('account-input')) return 'accountInputs';
     if (element.classList.contains('announcement-action')) return 'announcements';
     if (element.classList.contains('repair-action')) return 'repairSettings';
-    if (element.classList.contains('app-update-action')) return 'appUpdates';
     if (element.classList.contains('desktop-mini-titlebar-action')) return 'miniPlayerSettings';
     if (element.classList.contains('windows-playback-action')) return 'windowsPlayback';
     if (element.classList.contains('webos-update-notes')) return 'webosUpdateNotes';
@@ -1481,8 +1473,8 @@
     if (isFocusTarget(remembered)) return remembered;
     if (pageMode() === 'search') return searchInput || document.querySelector('.search-submit');
     if (pageMode() === 'account') return firstVisible('#account-method-qr[aria-pressed="true"]') || firstVisible('#account-method-phone') || firstVisible('.account-input') || firstVisible('.account-action');
-    if (pageMode() === 'settings') return firstVisible('.announcement-action') || firstVisible('#playback-repair-toggle') || selectedSidebarDisplay() || selectedLocale() || firstVisible('.recommendation-direction-action[aria-pressed="true"]') || firstVisible('.recommendation-direction-action') || firstVisible('.auto-cinema-action') || firstVisible('.webos-audio-action') || firstVisible('.portrait-background-action[aria-pressed="true"]') || firstVisible('.portrait-background-action') || firstVisible('.danmaku-region-action[aria-pressed="true"]') || firstVisible('.danmaku-region-action') || firstVisible('.episode-prefetch-action[aria-pressed="true"]') || firstVisible('.episode-prefetch-action') || firstVisible('.playback-mode-action[aria-pressed="true"]') || firstVisible('.playback-mode-action') || firstVisible('.windows-playback-action[aria-pressed="true"]') || firstVisible('.windows-playback-action') || firstVisible('.desktop-mini-titlebar-action') || firstVisible('.app-update-action') || activeSidebar();
-    if (pageMode() === 'support') return firstVisible('.support-card');
+    if (pageMode() === 'settings') return firstVisible('.announcement-action') || firstVisible('#playback-repair-toggle') || selectedSidebarDisplay() || selectedLocale() || firstVisible('.recommendation-direction-action[aria-pressed="true"]') || firstVisible('.recommendation-direction-action') || firstVisible('.auto-cinema-action') || firstVisible('.webos-audio-action') || firstVisible('.portrait-background-action[aria-pressed="true"]') || firstVisible('.portrait-background-action') || firstVisible('.danmaku-region-action[aria-pressed="true"]') || firstVisible('.danmaku-region-action') || firstVisible('.episode-prefetch-action[aria-pressed="true"]') || firstVisible('.episode-prefetch-action') || firstVisible('.playback-mode-action[aria-pressed="true"]') || firstVisible('.playback-mode-action') || firstVisible('.windows-playback-action[aria-pressed="true"]') || firstVisible('.windows-playback-action') || firstVisible('.desktop-mini-titlebar-action') || activeSidebar() || activeSidebar();
+    if (smsQROpen) return document.getElementById('sms-qr-close');
     if (pageMode() === 'apps') return firstVisible('.recommended-app-action') || activeSidebar();
     if (isLibraryPage()) return firstVisible('.library-card') || firstVisible('.history-filter.is-active') || firstVisible('[data-action="library-discover"]') || firstVisible('.library-toolbar-button');
     if (pageMode() === 'new') return firstVisible('.new-tab.is-active') || firstNewTab();
@@ -1558,7 +1550,7 @@
 
   function hideWorkspacePages() {
     if (typeof recommendedApps !== 'undefined' && recommendedApps) recommendedApps.hide();
-    [rankPage, newPage, followPage, libraryPage, accountPage, settingsPage, supportPage, recommendedAppsPage].forEach(function (page) {
+    [rankPage, newPage, followPage, libraryPage, accountPage, settingsPage, recommendedAppsPage].forEach(function (page) {
       if (page) page.classList.add('is-hidden');
     });
   }
@@ -1715,7 +1707,6 @@
 
   function moveFrom(current, direction) {
     if (coreConnectionModalOpen) return moveCoreConnectionFocus(current, direction);
-    if (typeof updateQROpen !== 'undefined' && updateQROpen) return null; // single close button; no navigation needed
     if (scanModalOpen()) return direction === 'left' || direction === 'right' ? moveWithinZone('searchScan', current, direction) : null;
     if (typeof accountCountryModalOpen !== 'undefined' && accountCountryModalOpen) {
       if (current.id === 'account-country-close') return direction === 'down' ? document.querySelector('.account-country-item.is-selected') || firstVisible('.account-country-item') : null;
@@ -1723,7 +1714,7 @@
       if (direction === 'down') return moveWithinZone('accountCountryItems', current, direction) || current;
       return null;
     }
-    if (supportModalOpen) return moveSupportFocus(current, direction);
+    if (smsQROpen) return document.getElementById('sms-qr-close');
     if (confirmOpen) return direction === 'left' || direction === 'right' ? moveWithinZone('confirmation', current, direction) : null;
     if (typeof playbackCommandMenuOpen !== 'undefined' && playbackCommandMenuOpen) return moveWithinZone('playbackCommandMenu', current, direction);
     if (rankFilterOpen) return moveModalFrom(current, direction);
@@ -2005,19 +1996,19 @@
     if (zone === 'startupPage') {
       if (direction === 'left' || direction === 'right') return moveWithinZone(zone, current, direction) || (direction === 'left' ? activeSidebar() : null);
       if (direction === 'up') return selectedSidebarDisplay() || activeSidebar();
-      if (direction === 'down') return firstVisible('.locale-action[aria-pressed="true"]') || firstVisible('.locale-action') || firstVisible('.recommendation-direction-action[aria-pressed="true"]') || firstVisible('.recommendation-direction-action') || firstVisible('.auto-cinema-action') || firstVisible('.webos-audio-action') || firstVisible('.portrait-background-action[aria-pressed="true"]') || firstVisible('.portrait-background-action') || firstVisible('.danmaku-region-action[aria-pressed="true"]') || firstVisible('.danmaku-region-action') || firstVisible('.danmaku-size-action[aria-pressed="true"]') || firstVisible('.danmaku-size-action') || firstVisible('.episode-prefetch-action[aria-pressed="true"]') || firstVisible('.episode-prefetch-action') || firstVisible('.playback-mode-action[aria-pressed="true"]') || firstVisible('.playback-mode-action') || firstVisible('.windows-playback-action[aria-pressed="true"]') || firstVisible('.windows-playback-action') || firstVisible('.desktop-mini-titlebar-action') || firstVisible('.app-update-action');
+      if (direction === 'down') return firstVisible('.locale-action[aria-pressed="true"]') || firstVisible('.locale-action') || firstVisible('.recommendation-direction-action[aria-pressed="true"]') || firstVisible('.recommendation-direction-action') || firstVisible('.auto-cinema-action') || firstVisible('.webos-audio-action') || firstVisible('.portrait-background-action[aria-pressed="true"]') || firstVisible('.portrait-background-action') || firstVisible('.danmaku-region-action[aria-pressed="true"]') || firstVisible('.danmaku-region-action') || firstVisible('.danmaku-size-action[aria-pressed="true"]') || firstVisible('.danmaku-size-action') || firstVisible('.episode-prefetch-action[aria-pressed="true"]') || firstVisible('.episode-prefetch-action') || firstVisible('.playback-mode-action[aria-pressed="true"]') || firstVisible('.playback-mode-action') || firstVisible('.windows-playback-action[aria-pressed="true"]') || firstVisible('.windows-playback-action') || firstVisible('.desktop-mini-titlebar-action') || activeSidebar();
       return null;
     }
     if (zone === 'localeActions') {
       if (direction === 'left' || direction === 'right') return moveWithinZone(zone, current, direction) || (direction === 'left' ? activeSidebar() : null);
       if (direction === 'up') return firstVisible('.startup-page-action[aria-pressed="true"]') || firstVisible('.startup-page-action') || selectedSidebarDisplay() || activeSidebar();
-      if (direction === 'down') return firstVisible('.recommendation-direction-action[aria-pressed="true"]') || firstVisible('.recommendation-direction-action') || firstVisible('.auto-cinema-action') || firstVisible('.webos-audio-action') || firstVisible('.portrait-background-action[aria-pressed="true"]') || firstVisible('.portrait-background-action') || firstVisible('.danmaku-region-action[aria-pressed="true"]') || firstVisible('.danmaku-region-action') || firstVisible('.danmaku-size-action[aria-pressed="true"]') || firstVisible('.danmaku-size-action') || firstVisible('.episode-prefetch-action[aria-pressed="true"]') || firstVisible('.episode-prefetch-action') || firstVisible('.playback-mode-action[aria-pressed="true"]') || firstVisible('.playback-mode-action') || firstVisible('.windows-playback-action[aria-pressed="true"]') || firstVisible('.windows-playback-action') || firstVisible('.desktop-mini-titlebar-action') || firstVisible('.app-update-action');
+      if (direction === 'down') return firstVisible('.recommendation-direction-action[aria-pressed="true"]') || firstVisible('.recommendation-direction-action') || firstVisible('.auto-cinema-action') || firstVisible('.webos-audio-action') || firstVisible('.portrait-background-action[aria-pressed="true"]') || firstVisible('.portrait-background-action') || firstVisible('.danmaku-region-action[aria-pressed="true"]') || firstVisible('.danmaku-region-action') || firstVisible('.danmaku-size-action[aria-pressed="true"]') || firstVisible('.danmaku-size-action') || firstVisible('.episode-prefetch-action[aria-pressed="true"]') || firstVisible('.episode-prefetch-action') || firstVisible('.playback-mode-action[aria-pressed="true"]') || firstVisible('.playback-mode-action') || firstVisible('.windows-playback-action[aria-pressed="true"]') || firstVisible('.windows-playback-action') || firstVisible('.desktop-mini-titlebar-action') || activeSidebar();
       return null;
     }
     if (zone === 'recommendationDirection') {
       if (direction === 'left' || direction === 'right') return moveWithinZone(zone, current, direction) || (direction === 'left' ? activeSidebar() : null);
       if (direction === 'up') return firstVisible('.locale-action[aria-pressed="true"]') || firstVisible('.locale-action') || selectedSidebarDisplay() || activeSidebar();
-      if (direction === 'down') return firstVisible('.auto-cinema-action') || firstVisible('.webos-audio-action') || firstVisible('.portrait-background-action[aria-pressed="true"]') || firstVisible('.portrait-background-action') || firstVisible('.danmaku-region-action[aria-pressed="true"]') || firstVisible('.danmaku-region-action') || firstVisible('.danmaku-size-action[aria-pressed="true"]') || firstVisible('.danmaku-size-action') || firstVisible('.episode-prefetch-action[aria-pressed="true"]') || firstVisible('.episode-prefetch-action') || firstVisible('.playback-mode-action[aria-pressed="true"]') || firstVisible('.playback-mode-action') || firstVisible('.windows-playback-action[aria-pressed="true"]') || firstVisible('.windows-playback-action') || firstVisible('.desktop-mini-titlebar-action') || firstVisible('.app-update-action');
+      if (direction === 'down') return firstVisible('.auto-cinema-action') || firstVisible('.webos-audio-action') || firstVisible('.portrait-background-action[aria-pressed="true"]') || firstVisible('.portrait-background-action') || firstVisible('.danmaku-region-action[aria-pressed="true"]') || firstVisible('.danmaku-region-action') || firstVisible('.danmaku-size-action[aria-pressed="true"]') || firstVisible('.danmaku-size-action') || firstVisible('.episode-prefetch-action[aria-pressed="true"]') || firstVisible('.episode-prefetch-action') || firstVisible('.playback-mode-action[aria-pressed="true"]') || firstVisible('.playback-mode-action') || firstVisible('.windows-playback-action[aria-pressed="true"]') || firstVisible('.windows-playback-action') || firstVisible('.desktop-mini-titlebar-action') || activeSidebar();
       return null;
     }
     if (zone === 'repairSettings') {
@@ -2033,12 +2024,6 @@
       if (direction === 'down') return current === toggle && check ? check : selectedSidebarDisplay() || activeSidebar();
       return null;
     }
-    if (zone === 'appUpdates') {
-      if (direction === 'left' || direction === 'right') return moveWithinZone(zone, current, direction) || (direction === 'left' ? activeSidebar() : null);
-      if (direction === 'up') return firstVisible('.desktop-mini-titlebar-action') || firstVisible('.windows-playback-action[aria-pressed="true"]') || firstVisible('.windows-playback-action') || firstVisible('.playback-mode-action[aria-pressed="true"]') || firstVisible('.playback-mode-action') || firstVisible('.episode-prefetch-action[aria-pressed="true"]') || firstVisible('.episode-prefetch-action') || firstVisible('.danmaku-size-action[aria-pressed="true"]') || firstVisible('.danmaku-size-action') || firstVisible('.danmaku-region-action[aria-pressed="true"]') || firstVisible('.danmaku-region-action') || firstVisible('.portrait-background-action[aria-pressed="true"]') || firstVisible('.portrait-background-action') || firstVisible('.webos-audio-action') || firstVisible('.auto-cinema-action') || firstVisible('.recommendation-direction-action[aria-pressed="true"]') || firstVisible('.recommendation-direction-action') || firstVisible('.locale-action[aria-pressed="true"]') || firstVisible('.locale-action') || selectedSidebarDisplay() || activeSidebar();
-      if (direction === 'down') return firstVisible('.webos-update-notes');
-      return null;
-    }
     if (zone === 'announcements') {
       if (direction === 'left' || direction === 'right') return moveWithinZone(zone, current, direction) || (direction === 'left' ? activeSidebar() : null);
       if (direction === 'up') return activeSidebar();
@@ -2048,69 +2033,64 @@
     if (zone === 'miniPlayerSettings') {
       if (direction === 'left') return activeSidebar();
       if (direction === 'up') return firstVisible('.windows-playback-action[aria-pressed="true"]') || firstVisible('.windows-playback-action') || firstVisible('.playback-mode-action[aria-pressed="true"]') || firstVisible('.playback-mode-action') || firstVisible('.episode-prefetch-action[aria-pressed="true"]') || firstVisible('.episode-prefetch-action') || firstVisible('.danmaku-size-action[aria-pressed="true"]') || firstVisible('.danmaku-size-action') || firstVisible('.danmaku-region-action[aria-pressed="true"]') || firstVisible('.danmaku-region-action') || firstVisible('.portrait-background-action[aria-pressed="true"]') || firstVisible('.portrait-background-action') || firstVisible('.webos-audio-action') || firstVisible('.auto-cinema-action') || firstVisible('.recommendation-direction-action[aria-pressed="true"]') || firstVisible('.recommendation-direction-action') || firstVisible('.locale-action[aria-pressed="true"]') || firstVisible('.locale-action') || selectedSidebarDisplay() || activeSidebar();
-      if (direction === 'down') return firstVisible('#app-check-update');
+      if (direction === 'down') return selectedSidebarDisplay() || activeSidebar();
       return null;
-    }
-    if (zone === 'webosUpdateNotes') {
-      if (direction === 'left' || direction === 'up' && current.scrollTop <= 1) return document.getElementById('app-check-update');
-      if (direction === 'up' || direction === 'down') current.scrollTop += (direction === 'up' ? -1 : 1) * Math.max(80, Math.floor(current.clientHeight * 0.65));
-      return current;
     }
     if (zone === 'autoCinema') {
       if (direction === 'left' || direction === 'right') return moveWithinZone(zone, current, direction) || (direction === 'left' ? activeSidebar() : null);
       if (direction === 'up') return firstVisible('.recommendation-direction-action[aria-pressed="true"]') || firstVisible('.recommendation-direction-action') || firstVisible('.locale-action[aria-pressed="true"]') || firstVisible('.locale-action') || selectedSidebarDisplay() || activeSidebar();
       if (direction === 'down' && firstVisible('.recommendation-auto-cinema-action')) return firstVisible('.recommendation-auto-cinema-action');
-      if (direction === 'down') return firstVisible('.webos-audio-action') || firstVisible('.portrait-background-action[aria-pressed="true"]') || firstVisible('.portrait-background-action') || firstVisible('.danmaku-region-action[aria-pressed="true"]') || firstVisible('.danmaku-region-action') || firstVisible('.danmaku-size-action[aria-pressed="true"]') || firstVisible('.danmaku-size-action') || firstVisible('.episode-prefetch-action[aria-pressed="true"]') || firstVisible('.episode-prefetch-action') || firstVisible('.playback-mode-action[aria-pressed="true"]') || firstVisible('.playback-mode-action') || firstVisible('.windows-playback-action[aria-pressed="true"]') || firstVisible('.windows-playback-action') || firstVisible('.desktop-mini-titlebar-action') || firstVisible('.app-update-action');
+      if (direction === 'down') return firstVisible('.webos-audio-action') || firstVisible('.portrait-background-action[aria-pressed="true"]') || firstVisible('.portrait-background-action') || firstVisible('.danmaku-region-action[aria-pressed="true"]') || firstVisible('.danmaku-region-action') || firstVisible('.danmaku-size-action[aria-pressed="true"]') || firstVisible('.danmaku-size-action') || firstVisible('.episode-prefetch-action[aria-pressed="true"]') || firstVisible('.episode-prefetch-action') || firstVisible('.playback-mode-action[aria-pressed="true"]') || firstVisible('.playback-mode-action') || firstVisible('.windows-playback-action[aria-pressed="true"]') || firstVisible('.windows-playback-action') || firstVisible('.desktop-mini-titlebar-action') || selectedSidebarDisplay() || activeSidebar();
       return null;
     }
     if (zone === 'recommendationAutoCinema') {
       if (direction === 'left') return activeSidebar();
       if (direction === 'up') return firstVisible('.auto-cinema-action') || activeSidebar();
-      if (direction === 'down') return firstVisible('.portrait-background-action[aria-pressed="true"]') || firstVisible('.portrait-background-action') || firstVisible('.danmaku-region-action[aria-pressed="true"]') || firstVisible('.danmaku-region-action') || firstVisible('.danmaku-size-action[aria-pressed="true"]') || firstVisible('.danmaku-size-action') || firstVisible('.episode-prefetch-action[aria-pressed="true"]') || firstVisible('.episode-prefetch-action') || firstVisible('.playback-mode-action[aria-pressed="true"]') || firstVisible('.playback-mode-action') || firstVisible('.windows-playback-action[aria-pressed="true"]') || firstVisible('.windows-playback-action') || firstVisible('.desktop-mini-titlebar-action') || firstVisible('.app-update-action');
+      if (direction === 'down') return firstVisible('.portrait-background-action[aria-pressed="true"]') || firstVisible('.portrait-background-action') || firstVisible('.danmaku-region-action[aria-pressed="true"]') || firstVisible('.danmaku-region-action') || firstVisible('.danmaku-size-action[aria-pressed="true"]') || firstVisible('.danmaku-size-action') || firstVisible('.episode-prefetch-action[aria-pressed="true"]') || firstVisible('.episode-prefetch-action') || firstVisible('.playback-mode-action[aria-pressed="true"]') || firstVisible('.playback-mode-action') || firstVisible('.windows-playback-action[aria-pressed="true"]') || firstVisible('.windows-playback-action') || firstVisible('.desktop-mini-titlebar-action') || activeSidebar();
       return null;
     }
     if (zone === 'webosAudio') {
       if (direction === 'left') return activeSidebar();
       if (direction === 'up') return firstVisible('.auto-cinema-action') || firstVisible('.recommendation-direction-action[aria-pressed="true"]') || firstVisible('.recommendation-direction-action') || firstVisible('.locale-action[aria-pressed="true"]') || selectedSidebarDisplay() || activeSidebar();
-      if (direction === 'down') return firstVisible('.portrait-background-action[aria-pressed="true"]') || firstVisible('.portrait-background-action') || firstVisible('.danmaku-region-action[aria-pressed="true"]') || firstVisible('.danmaku-region-action') || firstVisible('.danmaku-size-action[aria-pressed="true"]') || firstVisible('.danmaku-size-action') || firstVisible('.episode-prefetch-action[aria-pressed="true"]') || firstVisible('.episode-prefetch-action') || firstVisible('.playback-mode-action[aria-pressed="true"]') || firstVisible('.playback-mode-action') || firstVisible('.windows-playback-action[aria-pressed="true"]') || firstVisible('.windows-playback-action') || firstVisible('.desktop-mini-titlebar-action') || firstVisible('.app-update-action');
+      if (direction === 'down') return firstVisible('.portrait-background-action[aria-pressed="true"]') || firstVisible('.portrait-background-action') || firstVisible('.danmaku-region-action[aria-pressed="true"]') || firstVisible('.danmaku-region-action') || firstVisible('.danmaku-size-action[aria-pressed="true"]') || firstVisible('.danmaku-size-action') || firstVisible('.episode-prefetch-action[aria-pressed="true"]') || firstVisible('.episode-prefetch-action') || firstVisible('.playback-mode-action[aria-pressed="true"]') || firstVisible('.playback-mode-action') || firstVisible('.windows-playback-action[aria-pressed="true"]') || firstVisible('.windows-playback-action') || firstVisible('.desktop-mini-titlebar-action') || activeSidebar();
       return null;
     }
     if (zone === 'portraitBackground') {
       if (direction === 'left' || direction === 'right') return moveWithinZone(zone, current, direction) || (direction === 'left' ? activeSidebar() : null);
       if (direction === 'up' && firstVisible('.recommendation-auto-cinema-action')) return firstVisible('.recommendation-auto-cinema-action');
       if (direction === 'up') return firstVisible('.webos-audio-action') || firstVisible('.auto-cinema-action') || firstVisible('.recommendation-direction-action[aria-pressed="true"]') || firstVisible('.recommendation-direction-action') || firstVisible('.locale-action[aria-pressed="true"]') || firstVisible('.locale-action') || selectedSidebarDisplay() || activeSidebar();
-      if (direction === 'down') return firstVisible('.danmaku-region-action[aria-pressed="true"]') || firstVisible('.danmaku-region-action') || firstVisible('.danmaku-size-action[aria-pressed="true"]') || firstVisible('.danmaku-size-action') || firstVisible('.episode-prefetch-action[aria-pressed="true"]') || firstVisible('.episode-prefetch-action') || firstVisible('.playback-mode-action[aria-pressed="true"]') || firstVisible('.playback-mode-action') || firstVisible('.windows-playback-action[aria-pressed="true"]') || firstVisible('.windows-playback-action') || firstVisible('.desktop-mini-titlebar-action') || firstVisible('.app-update-action');
+      if (direction === 'down') return firstVisible('.danmaku-region-action[aria-pressed="true"]') || firstVisible('.danmaku-region-action') || firstVisible('.danmaku-size-action[aria-pressed="true"]') || firstVisible('.danmaku-size-action') || firstVisible('.episode-prefetch-action[aria-pressed="true"]') || firstVisible('.episode-prefetch-action') || firstVisible('.playback-mode-action[aria-pressed="true"]') || firstVisible('.playback-mode-action') || firstVisible('.windows-playback-action[aria-pressed="true"]') || firstVisible('.windows-playback-action') || firstVisible('.desktop-mini-titlebar-action') || activeSidebar();
       return null;
     }
     if (zone === 'danmakuRegion') {
       if (direction === 'left' || direction === 'right') return moveWithinZone(zone, current, direction) || (direction === 'left' ? activeSidebar() : null);
       if (direction === 'up' && !firstVisible('.portrait-background-action') && firstVisible('.recommendation-auto-cinema-action')) return firstVisible('.recommendation-auto-cinema-action');
       if (direction === 'up') return firstVisible('.portrait-background-action[aria-pressed="true"]') || firstVisible('.portrait-background-action') || firstVisible('.webos-audio-action') || firstVisible('.auto-cinema-action') || firstVisible('.recommendation-direction-action[aria-pressed="true"]') || firstVisible('.recommendation-direction-action') || firstVisible('.locale-action[aria-pressed="true"]') || firstVisible('.locale-action') || selectedSidebarDisplay() || activeSidebar();
-      if (direction === 'down') return firstVisible('.danmaku-size-action[aria-pressed="true"]') || firstVisible('.danmaku-size-action') || firstVisible('.episode-prefetch-action[aria-pressed="true"]') || firstVisible('.episode-prefetch-action') || firstVisible('.playback-mode-action[aria-pressed="true"]') || firstVisible('.playback-mode-action') || firstVisible('.windows-playback-action[aria-pressed="true"]') || firstVisible('.windows-playback-action') || firstVisible('.desktop-mini-titlebar-action') || firstVisible('.app-update-action');
+      if (direction === 'down') return firstVisible('.danmaku-size-action[aria-pressed="true"]') || firstVisible('.danmaku-size-action') || firstVisible('.episode-prefetch-action[aria-pressed="true"]') || firstVisible('.episode-prefetch-action') || firstVisible('.playback-mode-action[aria-pressed="true"]') || firstVisible('.playback-mode-action') || firstVisible('.windows-playback-action[aria-pressed="true"]') || firstVisible('.windows-playback-action') || firstVisible('.desktop-mini-titlebar-action') || activeSidebar();
       return null;
     }
     if (zone === 'danmakuSize') {
       if (direction === 'left' || direction === 'right') return moveWithinZone(zone, current, direction) || (direction === 'left' ? activeSidebar() : null);
       if (direction === 'up') return moveGrid('.danmaku-size-action', current, direction) || firstVisible('.danmaku-region-action[aria-pressed="true"]') || firstVisible('.danmaku-region-action') || activeSidebar();
-      if (direction === 'down') return moveGrid('.danmaku-size-action', current, direction) || firstVisible('.episode-prefetch-action[aria-pressed="true"]') || firstVisible('.episode-prefetch-action') || firstVisible('.playback-mode-action[aria-pressed="true"]') || firstVisible('.playback-mode-action') || firstVisible('.windows-playback-action[aria-pressed="true"]') || firstVisible('.windows-playback-action') || firstVisible('.desktop-mini-titlebar-action') || firstVisible('.app-update-action');
+      if (direction === 'down') return moveGrid('.danmaku-size-action', current, direction) || firstVisible('.episode-prefetch-action[aria-pressed="true"]') || firstVisible('.episode-prefetch-action') || firstVisible('.playback-mode-action[aria-pressed="true"]') || firstVisible('.playback-mode-action') || firstVisible('.windows-playback-action[aria-pressed="true"]') || firstVisible('.windows-playback-action') || firstVisible('.desktop-mini-titlebar-action') || activeSidebar();
       return null;
     }
     if (zone === 'episodePrefetch') {
       if (direction === 'left' || direction === 'right') return moveWithinZone(zone, current, direction) || (direction === 'left' ? activeSidebar() : null);
       if (direction === 'up') return firstVisible('.danmaku-size-action[aria-pressed="true"]') || firstVisible('.danmaku-size-action') || firstVisible('.danmaku-region-action[aria-pressed="true"]') || firstVisible('.danmaku-region-action') || firstVisible('.portrait-background-action[aria-pressed="true"]') || firstVisible('.portrait-background-action') || firstVisible('.webos-audio-action') || firstVisible('.auto-cinema-action') || firstVisible('.recommendation-direction-action[aria-pressed="true"]') || firstVisible('.recommendation-direction-action') || firstVisible('.locale-action[aria-pressed="true"]') || firstVisible('.locale-action') || selectedSidebarDisplay() || activeSidebar();
-      if (direction === 'down') return firstVisible('.playback-mode-action[aria-pressed="true"]') || firstVisible('.playback-mode-action') || firstVisible('.windows-playback-action[aria-pressed="true"]') || firstVisible('.windows-playback-action') || firstVisible('.desktop-mini-titlebar-action') || firstVisible('.app-update-action');
+      if (direction === 'down') return firstVisible('.playback-mode-action[aria-pressed="true"]') || firstVisible('.playback-mode-action') || firstVisible('.windows-playback-action[aria-pressed="true"]') || firstVisible('.windows-playback-action') || firstVisible('.desktop-mini-titlebar-action') || activeSidebar();
       return null;
     }
     if (zone === 'playbackModes') {
       if (direction === 'left' || direction === 'right') return moveWithinZone(zone, current, direction) || (direction === 'left' ? activeSidebar() : null);
       if (direction === 'up') return firstVisible('.episode-prefetch-action[aria-pressed="true"]') || firstVisible('.episode-prefetch-action') || firstVisible('.danmaku-size-action[aria-pressed="true"]') || firstVisible('.danmaku-size-action') || firstVisible('.danmaku-region-action[aria-pressed="true"]') || firstVisible('.danmaku-region-action') || firstVisible('.portrait-background-action[aria-pressed="true"]') || firstVisible('.portrait-background-action') || firstVisible('.webos-audio-action') || firstVisible('.auto-cinema-action') || firstVisible('.recommendation-direction-action[aria-pressed="true"]') || firstVisible('.recommendation-direction-action') || firstVisible('.locale-action[aria-pressed="true"]') || firstVisible('.locale-action') || selectedSidebarDisplay() || activeSidebar();
-      if (direction === 'down') return firstVisible('.windows-playback-action[aria-pressed="true"]') || firstVisible('.windows-playback-action') || firstVisible('.desktop-mini-titlebar-action') || firstVisible('.app-update-action');
+      if (direction === 'down') return firstVisible('.windows-playback-action[aria-pressed="true"]') || firstVisible('.windows-playback-action') || firstVisible('.desktop-mini-titlebar-action') || activeSidebar();
       return null;
     }
     if (zone === 'windowsPlayback') {
       if (direction === 'left' || direction === 'right') return moveWithinZone(zone, current, direction) || (direction === 'left' ? activeSidebar() : null);
       if (direction === 'up') return firstVisible('.playback-mode-action[aria-pressed="true"]') || firstVisible('.playback-mode-action') || firstVisible('.episode-prefetch-action[aria-pressed="true"]') || firstVisible('.episode-prefetch-action') || firstVisible('.danmaku-size-action[aria-pressed="true"]') || firstVisible('.danmaku-size-action') || firstVisible('.danmaku-region-action[aria-pressed="true"]') || firstVisible('.danmaku-region-action') || firstVisible('.portrait-background-action[aria-pressed="true"]') || firstVisible('.portrait-background-action') || firstVisible('.webos-audio-action') || firstVisible('.auto-cinema-action') || firstVisible('.recommendation-direction-action[aria-pressed="true"]') || firstVisible('.recommendation-direction-action') || firstVisible('.locale-action[aria-pressed="true"]') || firstVisible('.locale-action') || selectedSidebarDisplay() || activeSidebar();
-      if (direction === 'down') return firstVisible('.desktop-mini-titlebar-action') || firstVisible('.app-update-action');
+      if (direction === 'down') return firstVisible('.desktop-mini-titlebar-action') || activeSidebar();
       return null;
     }
     if (zone === 'accountInputs' || zone === 'accountActions') {
@@ -2694,7 +2674,7 @@
     if (followView === 'notifications') renderFollowNotifications();
   }
   function notificationCanPopup() {
-    return !applicationInBackground && !applicationHidden() && !isPlaybackPage() && !detailModalOpen && !(typeof actorWorksOpen !== 'undefined' && actorWorksOpen) && !playerOptionsOpen && !discussionOpen && !confirmOpen && !supportModalOpen;
+    return !applicationInBackground && !applicationHidden() && !isPlaybackPage() && !detailModalOpen && !(typeof actorWorksOpen !== 'undefined' && actorWorksOpen) && !playerOptionsOpen && !discussionOpen && !confirmOpen && !smsQROpen;
   }
   function notificationHidePopup() {
     clearTimeout(notificationPopupTimer);
@@ -2857,7 +2837,7 @@
     if (!recommendationAutoCinemaPreferences || !recommendationAutoCinemaPreferences.enabled() ||
         pageMode() !== 'recommend' || shell.classList.contains('is-cinema') ||
         applicationInBackground || applicationHidden() || coreConnectionModalOpen ||
-        scanModalOpen() || supportModalOpen || accountCountryModalOpen || accountKeypadOpen() ||
+        scanModalOpen() || smsQROpen || accountCountryModalOpen || accountKeypadOpen() ||
         detailModalOpen || actorWorksOpen || detailCastOpen || rankFilterOpen || confirmOpen ||
         playerOptionsOpen || playbackCommandMenuOpen || discussionOpen ||
         endRecommendations && endRecommendations.isOpen()) return;
@@ -3124,13 +3104,11 @@
   }
   function moveDiagnosticFocus(current, direction) {
     var scroll = document.getElementById('player-diagnostics-scroll');
-    var support = document.getElementById('player-diagnostics-support');
     var refresh = document.getElementById('player-diagnostics-refresh');
     var close = document.getElementById('player-diagnostics-close');
-    if (current === support) return direction === 'down' ? scroll : direction === 'right' ? refresh : null;
     if (current === scroll) {
       if (direction === 'right') return refresh;
-      if (direction === 'up' && scroll.scrollTop <= 1) return support;
+      if (direction === 'up' && scroll.scrollTop <= 1) return refresh;
       var bottom = Math.max(0, scroll.scrollHeight - scroll.clientHeight);
       if (direction === 'down' && scroll.scrollTop >= bottom - 1) return refresh;
       if (direction === 'up' || direction === 'down') {
@@ -3568,7 +3546,6 @@
   function handleBack() {
     var current = typeof androidShell !== 'undefined' && androidShell ? remoteFocusTarget() || document.activeElement : document.activeElement;
     if (coreConnectionModalOpen) { closeCoreConnectionModal(true); return true; }
-    if (typeof updateQROpen !== 'undefined' && updateQROpen) { closeUpdateQR(true); return true; }
     if (autoCinemaCandidate) cancelPendingAutoCinema();
     if (endRecommendations && endRecommendations.close(true)) return true;
     if (searchSuggestionOpen) { closeSearchSuggestions(true); return true; }
@@ -3577,7 +3554,7 @@
     if (typeof danmakuScanOpen !== 'undefined' && danmakuScanOpen) { closeDanmakuScan(true); return true; }
     if (accountCountryModalOpen) { closeAccountCountryModal(false); return true; }
     if (accountKeypadOpen()) { numericKeypad.close('back'); return true; }
-    if (supportModalOpen) { closeSupportQR(); return true; }
+    if (smsQROpen) { closeSMSQR(true); return true; }
     var playbackHint = document && typeof document.getElementById === 'function' ? document.getElementById('playback-menu-hint') : null;
     if (playbackHint && !playbackHint.classList.contains('is-hidden')) { if (typeof closePlaybackMenuHint === 'function') closePlaybackMenuHint(); return true; }
     if (rankFilterOpen) { closeRankFilter(true); return true; }
@@ -3669,10 +3646,6 @@
     shell.classList.remove('is-controls-hidden'); exitCinema();
     setPlayerStatus('');
   }
-  function canShowAppUpdate() {
-    var current = document.activeElement;
-    return !applicationInBackground && !applicationHidden() && pageMode() !== 'apps' && !isPlaybackPage() && !supportModalOpen && !detailModalOpen && !(typeof updateQROpen !== 'undefined' && updateQROpen) && !(typeof actorWorksOpen !== 'undefined' && actorWorksOpen) && !discussionOpen && !confirmOpen && !playerOptionsOpen && !accountBusy && !accountKeypadOpen() && !(current && /INPUT|TEXTAREA/.test(current.tagName));
-  }
   // Old native IME callbacks are irrelevant to the app-owned numeric keypad.
   function openHomeProgram(program) {
     if (typeof program === 'string') {
@@ -3695,7 +3668,7 @@
     pendingAccountHomeProgram = null;
     startPlayer({ series_id: program.series_id, title: program.title, intro: '', cover: '' }, null, { cardLaunch: !!program.cardLaunch });
   }
-  window.HongguoTV = { prepareExit: function () { pauseForBackground(); return libraryQueue.catch(function () {}); }, remoteKey: remoteKey, requestBack: handleBack, mediaCommand: handleMediaCommand, togglePlaybackCommandMenu: togglePlaybackCommandMenu, pauseForBackground: pauseForBackground, resumeFromBackground: resumeFromBackground, desktopFullscreenChanged: desktopFullscreenChanged, canShowAppUpdate: canShowAppUpdate, finishAccountEditing: function () {}, finishSearchEditing: function () { var current = typeof androidShell !== 'undefined' && androidShell ? remoteFocusTarget() || document.activeElement : document.activeElement; if (current === searchInput) goFocus(searchSuggestionOpen ? firstVisible('.search-suggestion') || firstSearchAction() || firstSearchFilter() : firstSearchAction() || firstSearchFilter()); }, openHomeProgram: openHomeProgram };
+  window.HongguoTV = { prepareExit: function () { pauseForBackground(); return libraryQueue.catch(function () {}); }, remoteKey: remoteKey, requestBack: handleBack, mediaCommand: handleMediaCommand, togglePlaybackCommandMenu: togglePlaybackCommandMenu, pauseForBackground: pauseForBackground, resumeFromBackground: resumeFromBackground, desktopFullscreenChanged: desktopFullscreenChanged, finishAccountEditing: function () {}, finishSearchEditing: function () { var current = typeof androidShell !== 'undefined' && androidShell ? remoteFocusTarget() || document.activeElement : document.activeElement; if (current === searchInput) goFocus(searchSuggestionOpen ? firstVisible('.search-suggestion') || firstSearchAction() || firstSearchFilter() : firstSearchAction() || firstSearchFilter()); }, openHomeProgram: openHomeProgram };
 
   function miniPlayerState() {
     var video = document.getElementById('hero-video');
@@ -4230,7 +4203,7 @@
     document.getElementById('account-sms-qr').classList.toggle('is-hidden', !smsQR);
     document.getElementById('account-sms-qr-help').classList.toggle('is-hidden', !smsQR);
     document.getElementById('account-sms-qr').disabled = false;
-    if (supportModalOpen && supportReturnFocus && supportReturnFocus.id === 'account-sms-qr' && !smsQR) closeSupportQR();
+    if (smsQROpen && smsQRReturnFocus && smsQRReturnFocus.id === 'account-sms-qr' && !smsQR) closeSMSQR(false);
     var sync = data.sync || {};
     var syncLabel = !logged ? uiText('ui.notLoggedInLocal', '未登录 · 记录保存在本机') : ({ syncing: uiText('ui.syncing', '正在同步…'), pending: uiText('ui.syncPending', '等待同步'), error: uiText('ui.syncIncomplete', '同步暂未完成'), idle: sync.last_sync ? uiText('ui.synced', '已同步') : uiText('ui.notSynced', '尚未同步') })[sync.state] || uiText('ui.syncPending', '等待同步');
     document.getElementById('account-sync-state').textContent = syncLabel;
@@ -4821,7 +4794,7 @@
     var allowed = !!(playback && playback.owner === accountEpoch && playback.generation === feedGeneration &&
       isPlaybackPage() && shell.classList.contains('is-cinema') && !applicationInBackground && !applicationHidden() &&
       !playback.continuationPending && !seasonSwitchRequest && !detailModalOpen && !playerOptionsOpen &&
-      !playbackCommandMenuOpen && !discussionOpen && !confirmOpen && !scanModalOpen() && !supportModalOpen &&
+      !playbackCommandMenuOpen && !discussionOpen && !confirmOpen && !scanModalOpen() && !smsQROpen &&
       !(endRecommendations && endRecommendations.isOpen()) &&
       playbackVideoReady(playback, playback.presentation, video));
     nextSeasonHint.update(playback, video, items, allowed);
@@ -7851,38 +7824,6 @@
     goFocus(document.getElementById('confirm-cancel'));
   }
 
-  function closeUpdateQR(restore) {
-    if (!updateQROpen) return;
-    updateQROpen = false;
-    var modal = document.getElementById('update-qr-modal');
-    modal.classList.add('is-hidden');
-    modal.setAttribute('aria-hidden', 'true');
-    var image = document.getElementById('update-qr-image');
-    image.classList.add('is-hidden');
-    image.removeAttribute('src');
-    var target = updateQRReturnFocus; updateQRReturnFocus = null;
-    if (restore && target && focusables().indexOf(target) >= 0) goFocus(target);
-  }
-
-  function openUpdateQR(releaseUrl, version) {
-    if (updateQROpen || !releaseUrl) return false;
-    var generator = window.HongguoUpdateQR;
-    if (!generator || typeof generator.toSVG !== 'function') return false;
-    var svg = generator.toSVG(releaseUrl, 260);
-    if (!svg) return false;
-    var image = document.getElementById('update-qr-image');
-    image.src = svg;
-    image.classList.remove('is-hidden');
-    document.getElementById('update-qr-version').textContent = version ? uiText('ui.updateQRVersion', '新版本 {version}', { version: version }) : '';
-    updateQRReturnFocus = document.activeElement;
-    updateQROpen = true;
-    var modal = document.getElementById('update-qr-modal');
-    modal.classList.remove('is-hidden');
-    modal.setAttribute('aria-hidden', 'false');
-    goFocus(document.getElementById('update-qr-close'));
-    return true;
-  }
-
   function closeSearchScan(restore) {
     searchScanOpen = false;
     searchScanReusable = false;
@@ -8490,7 +8431,7 @@
     if (searchScanOpen) closeSearchScan(false);
     if (typeof danmakuScanOpen !== 'undefined' && danmakuScanOpen) closeDanmakuScan(false);
     if (smsVerification) smsVerification.stop();
-    if (supportModalOpen) closeSupportQR();
+    if (smsQROpen) closeSMSQR(true);
     if (accountKeypadOpen()) numericKeypad.close('page');
     engagement.clear();
     if (typeof actorWorksOpen !== 'undefined' && actorWorksOpen) closeActorWorks(false);
@@ -8560,12 +8501,8 @@
     } else if (item.dataset.page === 'settings') {
       mainSurface.classList.add('has-workspace');
       settingsPage.classList.remove('is-hidden');
-      appUpdates.refresh();
       if (playbackRepair) playbackRepair.refresh().catch(function () {});
       if (announcements) announcements.refresh();
-    } else if (item.dataset.page === 'support') {
-      mainSurface.classList.add('has-workspace');
-      supportPage.classList.remove('is-hidden');
     } else if (item.dataset.page === 'apps') {
       mainSurface.classList.add('has-workspace');
       recommendedAppsPage.classList.remove('is-hidden');
@@ -8619,7 +8556,6 @@
       scrollEndRecommendationIntoView(event.target);
     } else setTimeout(flushEndRecommendations, 0);
     if (typeof playbackCommandMenuOpen !== 'undefined' && playbackCommandMenuOpen && !event.target.closest('#playback-command-menu')) { goFocus(firstVisible('.playback-command-action')); return; }
-    if (updateQROpen && !event.target.closest('#update-qr-modal')) { goFocus(document.getElementById('update-qr-close')); return; }
     if (scanModalOpen() && !event.target.closest('#search-scan-modal')) { goFocus(document.getElementById('search-scan-close')); return; }
     if (accountCountryModalOpen && !event.target.closest('#account-country-modal')) { goFocus(document.querySelector('.account-country-item.is-selected') || document.getElementById('account-country-close')); return; }
     if (typeof actorWorksOpen !== 'undefined' && actorWorksOpen && !event.target.closest('#actor-works-modal')) { goFocus(document.getElementById('actor-works-close')); return; }
@@ -8893,7 +8829,7 @@
       isEnabled: function () {
         return isPlaybackPage() && !!activePlayback && !applicationInBackground && !applicationHidden() &&
           !detailModalOpen && !playerOptionsOpen && !confirmOpen && !discussionOpen &&
-          !scanModalOpen() && !supportModalOpen && !accountCountryModalOpen && !accountKeypadOpen() &&
+          !scanModalOpen() && !smsQROpen && !accountCountryModalOpen && !accountKeypadOpen() &&
           !rankFilterOpen && !detailCastOpen && !actorWorksOpen && !playbackCommandMenuOpen &&
           !(endRecommendations && endRecommendations.isOpen());
       },
@@ -8913,7 +8849,7 @@
     window.HongguoEpisodeWheel.attach(document.getElementById('hero'), {
       isEnabled: function () {
         return pageMode() === 'player' && !detailModalOpen && !playerOptionsOpen && !confirmOpen &&
-          !discussionOpen && !scanModalOpen() && !supportModalOpen && !accountCountryModalOpen &&
+          !discussionOpen && !scanModalOpen() && !smsQROpen && !accountCountryModalOpen &&
           !accountKeypadOpen() && !rankFilterOpen && !detailCastOpen && !actorWorksOpen;
       },
       onStep: function (step) { switchPlayerEpisode(step, true); }
@@ -8922,7 +8858,6 @@
   document.getElementById('player-options-close').addEventListener('click', function () { closePlayerOptions(); });
   document.getElementById('player-diagnostics-close').addEventListener('click', function () { closePlayerOptions(); });
   document.getElementById('player-diagnostics-refresh').addEventListener('click', refreshPlaybackDiagnostics);
-  document.getElementById('player-diagnostics-support').addEventListener('click', openDiagnosticSupport);
   document.getElementById('control-progress').addEventListener('click', function (event) {
     if (!event.detail) return;
     var rect = this.getBoundingClientRect();
@@ -9421,68 +9356,32 @@
   });
   document.addEventListener('visibilitychange', function () { if (applicationHidden()) watchStatisticsCollector.stop(true); if (desktopShell) return; if (applicationHidden()) pauseForBackground(); else resumeFromBackground(); });
 
-  function moveSupportFocus(current, direction) {
-    var close = document.getElementById('support-close');
-    if (document.getElementById('support-modal-methods').classList.contains('is-hidden')) return close;
-    var wechat = document.getElementById('support-method-wechat');
-    var alipay = document.getElementById('support-method-alipay');
-    if (current === close) return direction === 'down' ? document.querySelector('.support-method-option.is-selected') || wechat : close;
-    if (direction === 'up') return close;
-    if (direction === 'left') return wechat;
-    if (direction === 'right') return alipay;
-    return current;
+  function openSMSQR(card, image, title) {
+    if (smsQROpen || !image || !image.getAttribute('src')) return;
+    smsQRReturnFocus = card; smsQROpen = true;
+    document.getElementById('sms-qr-title').textContent = title || uiText('ui.scanSmsTitle', '扫码填写短信 · 请手动发送');
+    var large = document.getElementById('sms-qr-large');
+    large.src = image.getAttribute('src');
+    large.alt = image.alt || uiText('account.smsQrAlt', '收件号码与短信内容二维码');
+    var modal = document.getElementById('sms-qr-modal');
+    modal.classList.remove('is-hidden');
+    modal.setAttribute('aria-hidden', 'false');
+    goFocus(document.getElementById('sms-qr-close'));
   }
-  function selectDiagnosticSupportMethod(method) {
-    if (method !== 'wechat' && method !== 'alipay') return;
-    var card = document.querySelector('.support-card[data-focus="support-' + method + '"]');
-    if (!card) return;
-    var image = card.querySelector('img');
-    document.getElementById('support-modal-title').textContent = card.querySelector('h2').textContent;
-    document.getElementById('support-large-qr').src = image.getAttribute('src');
-    document.getElementById('support-large-qr').alt = image.alt;
-    ['wechat', 'alipay'].forEach(function (value) {
-      var button = document.getElementById('support-method-' + value);
-      button.classList.toggle('is-selected', value === method);
-      button.setAttribute('aria-pressed', value === method ? 'true' : 'false');
-    });
+  function closeSMSQR(restore) {
+    if (!smsQROpen) return;
+    smsQROpen = false;
+    var modal = document.getElementById('sms-qr-modal');
+    modal.classList.add('is-hidden');
+    modal.setAttribute('aria-hidden', 'true');
+    document.getElementById('sms-qr-large').removeAttribute('src');
+    var target = smsQRReturnFocus; smsQRReturnFocus = null;
+    if (restore !== false && target && focusables().indexOf(target) >= 0) goFocus(target);
   }
-  function openDiagnosticSupport() {
-    if (!playerOptionsOpen || !document.getElementById('player-options').classList.contains('is-diagnostics') || supportModalOpen) return;
-    var card = document.querySelector('.support-card[data-focus="support-wechat"]');
-    if (!card) return;
-    openQRCode(document.getElementById('player-diagnostics-support'), card.querySelector('img'), card.querySelector('h2').textContent);
-    document.getElementById('support-modal').classList.add('is-diagnostic-support');
-    document.getElementById('support-modal-methods').classList.remove('is-hidden');
-    selectDiagnosticSupportMethod('wechat');
-    goFocus(document.getElementById('support-method-wechat'));
-  }
-  function openQRCode(card, image, title) {
-    supportReturnFocus = card; supportModalOpen = true;
-    document.getElementById('support-modal-methods').classList.add('is-hidden');
-    document.getElementById('support-modal').classList.remove('is-diagnostic-support');
-    document.getElementById('support-modal-title').textContent = title;
-    document.getElementById('support-large-qr').src = image.getAttribute('src');
-    document.getElementById('support-large-qr').alt = image.alt;
-    document.getElementById('support-modal').classList.remove('is-hidden');
-    document.getElementById('support-modal').setAttribute('aria-hidden', 'false');
-    goFocus(document.getElementById('support-close'));
-  }
-  function closeSupportQR() {
-    supportModalOpen = false;
-    document.getElementById('support-modal').classList.add('is-hidden');
-    document.getElementById('support-modal').setAttribute('aria-hidden', 'true');
-    document.getElementById('support-modal').classList.remove('is-diagnostic-support');
-    document.getElementById('support-modal-methods').classList.add('is-hidden');
-    document.getElementById('support-large-qr').removeAttribute('src');
-    goFocus(focusables().indexOf(supportReturnFocus) >= 0 ? supportReturnFocus : firstContentFocus());
-  }
-  document.querySelectorAll('.support-card').forEach(function (card) { card.addEventListener('click', function () { openQRCode(card, card.querySelector('img'), card.querySelector('h2').textContent); }); });
-  document.querySelectorAll('.support-method-option').forEach(function (button) { button.addEventListener('click', function () { selectDiagnosticSupportMethod(this.getAttribute('data-support-method')); }); });
   document.getElementById('account-sms-qr').addEventListener('click', function () {
-    var image = document.getElementById('account-sms-qr-image');
-    if (image.getAttribute('src')) openQRCode(this, image, uiText('ui.scanSmsTitle', '扫码填写短信 · 请手动发送'));
+    openSMSQR(this, document.getElementById('account-sms-qr-image'), uiText('ui.scanSmsTitle', '扫码填写短信 · 请手动发送'));
   });
-  document.getElementById('support-close').addEventListener('click', closeSupportQR);
+  document.getElementById('sms-qr-close').addEventListener('click', function () { closeSMSQR(true); });
   numericKeypad = window.HongguoNumericKeypad.create({
     render: function (state) {
       var modal = document.getElementById('account-keypad-modal');
@@ -9503,7 +9402,7 @@
       var origin = accountKeypadReturnFocus; accountKeypadReturnFocus = null; accountKeypadPhase = '';
       if (result.reason !== 'complete' && result.reason !== 'back') return;
       renderAccount();
-      if (pageMode() !== 'account' || accountBusy || confirmOpen || supportModalOpen) return;
+      if (pageMode() !== 'account' || accountBusy || confirmOpen || smsQROpen) return;
       var next = result.reason === 'back' ? origin : result.kind === 'code' ? firstVisible('#account-login') : firstVisible('#account-code') || firstVisible('#account-send-code');
       var target = next || (origin && !origin.disabled ? origin : firstContentFocus());
       // The keypad close render hides its buttons synchronously, but Android
@@ -9511,7 +9410,7 @@
       // the intended page target on the next turn as well.
       goFocus(target);
       setTimeout(function () {
-        if (pageMode() === 'account' && !accountKeypadOpen() && !accountBusy && !confirmOpen && !supportModalOpen) {
+        if (pageMode() === 'account' && !accountKeypadOpen() && !accountBusy && !confirmOpen && !smsQROpen) {
           goFocus(target && !target.disabled && target.getClientRects().length ? target : firstContentFocus());
         }
       }, 0);
@@ -9531,7 +9430,7 @@
   }
   function canReceivePhoneSearch() {
     return !desktopShell && pageMode() === 'search' && !applicationInBackground && !applicationHidden() &&
-      !detailModalOpen && !actorWorksOpen && !confirmOpen && !supportModalOpen && !accountKeypadOpen();
+      !detailModalOpen && !actorWorksOpen && !confirmOpen && !smsQROpen && !accountKeypadOpen();
   }
   function syncPhoneSearch() {
     if (!phoneSearch) return;
@@ -9664,7 +9563,7 @@
     onState: function (value) {
       if (value.state === 'expired') { accountNotice = uiText('ui.accountVerificationExpired', '本机验证等待时间已结束，请重新获取验证码'); accountNoticeIsError = false; }
       renderAccount();
-      if (value.state === 'timeout' && pageMode() === 'account' && !supportModalOpen) goFocus(document.getElementById('account-verify'));
+      if (value.state === 'timeout' && pageMode() === 'account' && !smsQROpen) goFocus(document.getElementById('account-verify'));
       if (value.state === 'expired' && !applicationHidden()) pollAccount();
     }
   });
@@ -9692,7 +9591,6 @@
       window.setTimeout(function () { window.location.reload(); }, 0);
     });
   });
-  var desktopUpdateNotifiedCode = 0;
   var recommendedApps = window.HongguoRecommendedAppsUI.create({
     android: androidShell && !desktopShell && !webosShell,
     bridge: window.HongguoRecommendedApps,
@@ -9726,21 +9624,6 @@
   });
   if (window.HongguoI18n) window.HongguoI18n.onChange(function () { recommendedApps.refresh(); });
   window.addEventListener('pagehide', function () { recommendedApps.destroy(); });
-
-  // Android shows a release-page QR instead of downloading in place. The flag
-  // makes a manual "check update" open the QR once the async check reports a
-  // new version; automatic background checks must never interrupt the user.
-  var updateQRRequested = false;
-  function androidUpdateQRMode() { return !desktopShell && !webosShell; }
-  function canShowUpdateQR(data) {
-    return androidUpdateQRMode() && data && !data.desktop && !data.manual_install &&
-      data.release_url && (data.state === 'available' || data.state === 'ready');
-  }
-  function maybeShowUpdateQR(data) {
-    if (!updateQRRequested || !canShowUpdateQR(data) || updateQROpen) return;
-    updateQRRequested = false;
-    openUpdateQR(data.release_url, data.latest_version);
-  }
 
   var repairSaving = false, repairRetrying = false;
   function repairText(key, params) { return uiText('repair.' + key, '', params); }
@@ -9811,63 +9694,6 @@
   window.addEventListener('pagehide', playbackRepair.destroy);
   playbackRepair.refresh().catch(function () {});
 
-  var appUpdates = window.HongguoAppUpdates.create({
-    bridge: window.HongguoTVUpdates,
-    canPrompt: canShowAppUpdate,
-    qrMode: androidUpdateQRMode,
-    onRelease: function (data) { maybeShowUpdateQR(data); },
-    render: function (data) {
-      var current = document.getElementById('app-current-version');
-      if (data.current_version) current.textContent = data.current_version + (data.edition ? ' · ' + data.edition : '');
-      else if (data.state === 'browser') current.textContent = uiText('ui.browserPreview', '网页预览');
-      document.getElementById('app-update-state').textContent = data.message || uiText('ui.updateDefault', '启动后每天自动检查一次，播放时不打扰。');
-      var check = document.getElementById('app-check-update');
-      // Keep the active TV focus node alive while native checking/download runs.
-      check.disabled = !data.supported;
-      check.setAttribute('aria-disabled', data.state === 'checking' || data.state === 'downloading' || data.state === 'installing' ? 'true' : 'false');
-      check.textContent = data.state === 'checking' ? uiText('ui.checking', '检查中…') : data.manual_install ? uiText('ui.checkUpdate', '检查更新') : androidUpdateQRMode() && data.release_url && (data.state === 'ready' || data.state === 'available') ? uiText('ui.scanUpdate', '扫码更新 {version}', { version: data.latest_version }) : !data.desktop && data.state === 'ready' ? uiText('ui.installUpdate', '安装更新') : !data.desktop && data.state === 'available' ? uiText('ui.viewUpdate', '查看更新 {version}', { version: data.latest_version }) : uiText('ui.checkUpdate', '检查更新');
-      if (webosShell && data.manual_install) {
-        var webosNotes = document.getElementById('desktop-update-notes');
-        webosNotes.classList.toggle('is-hidden', !data.latest_version);
-        webosNotes.classList.add('webos-update-notes');
-        webosNotes.setAttribute('tabindex', data.latest_version ? '0' : '-1');
-        webosNotes.setAttribute('data-focus', 'webos-update-notes');
-        webosNotes.setAttribute('aria-label', uiText('ui.webosUpdateDetails', '更新说明与手动安装方法'));
-        var webosNotesText = data.latest_version ? uiText('ui.releaseVersion', '版本 {version}', { version: data.latest_version }) + '\n\n' + uiText('ui.webosInstallGuide', '请在电脑上打开以下发布页面，下载 IPK 后使用 webOS Dev Manager 手动安装：') + '\n' + data.release_url + '\n\n' + data.release_notes : '';
-        if (webosNotes.textContent !== webosNotesText) webosNotes.textContent = webosNotesText;
-        if (data.state === 'available' && data.prompt_allowed && !data.notified && canShowAppUpdate()) {
-          showNotice(uiText('ui.webosUpdateNotice', '发现 webOS 新版本 {version}，可在设置中查看安装说明。', { version: data.latest_version }));
-          window.HongguoTVUpdates.markNotified(data.latest_version);
-        }
-      }
-      if (data.desktop) {
-        var downloading = data.state === 'downloading';
-        var download = document.getElementById('desktop-download-update');
-        download.classList.toggle('is-hidden', !(data.state === 'available' || downloading || data.state === 'error' && data.latest_code));
-        download.setAttribute('aria-disabled', downloading || data.state === 'checking' ? 'true' : 'false');
-        download.textContent = downloading ? uiText('ui.downloadingPercent', '下载中 {percent}%', { percent: data.total ? Math.floor(data.downloaded * 100 / data.total) : 0 }) : uiText('ui.downloadZip', '下载更新 ZIP');
-        var folder = document.getElementById('desktop-open-update-folder');
-        folder.classList.toggle('is-hidden', data.state !== 'ready');
-        if (document.activeElement === download && data.state === 'ready') goFocus(folder);
-        else if (document.activeElement === download && download.classList.contains('is-hidden')) goFocus(check);
-        var notes = document.getElementById('desktop-update-notes');
-        notes.classList.toggle('is-hidden', !data.release_notes);
-        notes.textContent = data.release_notes ? uiText('ui.releaseVersion', '版本 {version}', { version: data.latest_version }) + '\n' + data.release_notes : '';
-        if (data.state === 'available' && data.latest_code > desktopUpdateNotifiedCode && data.prompt_allowed && canShowAppUpdate()) {
-          desktopUpdateNotifiedCode = data.latest_code;
-          showNotice(uiText('ui.newVersionNotice', '发现新版本 {version}，可在设置中下载更新。', { version: data.latest_version }));
-        }
-      }
-      maybeShowUpdateQR(data);
-    }
-  });
-  document.getElementById('app-check-update').addEventListener('click', function () {
-    if (androidUpdateQRMode()) updateQRRequested = true;
-    appUpdates.activate();
-  });
-  document.getElementById('update-qr-close').addEventListener('click', function () { closeUpdateQR(true); });
-  document.getElementById('desktop-download-update').addEventListener('click', function () { if (desktopShell) window.HongguoTVUpdates.download(); });
-  document.getElementById('desktop-open-update-folder').addEventListener('click', function () { if (desktopShell) window.HongguoTVUpdates.openFolder(); });
   var announcements = window.HongguoAnnouncements ? window.HongguoAnnouncements.create({
     platform: function () {
       if (androidShell) return 'android';
@@ -9879,13 +9705,9 @@
       return 'browser';
     },
     version: function () {
-      try {
-        var status = window.HongguoTVUpdates && window.HongguoTVUpdates.getStatus ? JSON.parse(window.HongguoTVUpdates.getStatus()) : null;
-        return status && status.current_version || '';
-      } catch (ignored) { return ''; }
+      try { return String(window.HongguoDesktop && window.HongguoDesktop.version || window.HongguoWebOS && window.HongguoWebOS.appVersion || ''); } catch (ignored) { return ''; }
     },
     t: uiText,
-    checkUpdate: appUpdates.activate,
     restoreFocus: function (id) {
       var targets = focusables('#system-announcements [data-focus]');
       var target = targets.filter(function (node) { return node.getAttribute('data-focus') === id; })[0];
@@ -9896,7 +9718,7 @@
       var settings = document.querySelector('.side-item[data-page="settings"]');
       if (pageMode() !== 'settings') activatePage(settings);
       playbackRepair.refresh().then(function (state) {
-        if (!state.supported) { appUpdates.activate(); return; }
+        if (!state.supported) return;
         var target = document.getElementById(state.enabled ? 'playback-repair-check' : 'playback-repair-toggle');
         goFocus(target);
         if (state.enabled && !state.checking) changePlaybackRepair('check');
@@ -10226,13 +10048,6 @@
       updateWebOSAudioSettings();
     });
   }
-  var licenses = document.getElementById('app-open-licenses');
-  if (window.HongguoNativePlayer && window.HongguoNativePlayer.showLicenses) {
-    licenses.classList.remove('is-hidden');
-    licenses.addEventListener('click', function () { window.HongguoNativePlayer.showLicenses(); });
-  }
-  appUpdates.refresh();
-  setInterval(appUpdates.refresh, 1000);
   updateFollowNotificationAccess();
   syncNativePlaybackPageState();
   goFocus(document.querySelector('.side-item.is-active'));

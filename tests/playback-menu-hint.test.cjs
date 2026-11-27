@@ -135,7 +135,7 @@ test('Android menu key focuses the existing bottom playback controls', () => {
     androidShell: true,
     playbackCommandMenuAvailable: () => true,
     detailModalOpen: false, confirmOpen: false, discussionOpen: false,
-    supportModalOpen: false, rankFilterOpen: false, detailCastOpen: false,
+    smsQROpen: false, rankFilterOpen: false, detailCastOpen: false,
     playerOptionsOpen: false, scanModalOpen: () => false,
     actorWorksOpen: false, endRecommendations: { isOpen: () => false },
     revealControls() { focused.push('reveal'); },

@@ -83,7 +83,7 @@ function fixture(count = 3, options = {}) {
 
   const context = vm.createContext({
     coreConnectionModalOpen: false, scanModalOpen: () => false, accountCountryModalOpen: false,
-    supportModalOpen: false, confirmOpen: false, playbackCommandMenuOpen: false, rankFilterOpen: false,
+    smsQROpen: false, confirmOpen: false, playbackCommandMenuOpen: false, rankFilterOpen: false,
     actorWorksOpen: false, playerOptionsOpen: false, detailModalOpen: false, discussionOpen: false,
     followView: 'follow', followPage: root, followActions: actions, followListView: list,
     followNotificationView: view, followNotificationList: notificationList, followNotificationItems: [],

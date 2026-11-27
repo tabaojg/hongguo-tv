@@ -61,7 +61,7 @@ func runWindowsWasmProbe() error {
 	defer server.Close()
 	host := newCoreHost()
 	host.dataDir = data
-	app := &desktopApp{core: host, updater: newDesktopUpdater(0, data, data, desktopPlatform())}
+	app := &desktopApp{core: host}
 	var ctx context.Context
 	var mu sync.Mutex
 	var result map[string]interface{}

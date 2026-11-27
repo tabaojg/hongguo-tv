@@ -89,7 +89,7 @@ test('the app only consumes account-scoped cached data on the current fullscreen
     shell: { classList: { contains: () => flags.cinema } }, isPlaybackPage: () => flags.page,
     applicationInBackground: false, applicationHidden: () => flags.hidden,
     seasonSwitchRequest: null, detailModalOpen: false, playerOptionsOpen: false, playbackCommandMenuOpen: false,
-    discussionOpen: false, confirmOpen: false, scanModalOpen: () => false, supportModalOpen: false,
+    discussionOpen: false, confirmOpen: false, scanModalOpen: () => false, smsQROpen: false,
     endRecommendations: { isOpen: () => false }, playbackVideoReady: () => flags.ready
   });
   vm.runInContext(app.slice(app.indexOf('  function updateNextSeasonHint('), app.indexOf('  function offerEndRecommendations(')), context);
@@ -99,7 +99,7 @@ test('the app only consumes account-scoped cached data on the current fullscreen
   for (const flag of ['cinema', 'page', 'ready']) {
     flags[flag] = false; context.updateNextSeasonHint(video); assert.equal(calls.at(-1)[3], false); flags[flag] = true;
   }
-  for (const key of ['applicationInBackground', 'detailModalOpen', 'playerOptionsOpen', 'playbackCommandMenuOpen', 'discussionOpen', 'confirmOpen', 'supportModalOpen', 'seasonSwitchRequest']) {
+  for (const key of ['applicationInBackground', 'detailModalOpen', 'playerOptionsOpen', 'playbackCommandMenuOpen', 'discussionOpen', 'confirmOpen', 'smsQROpen', 'seasonSwitchRequest']) {
     context[key] = true; context.updateNextSeasonHint(video); assert.equal(calls.at(-1)[3], false); context[key] = false;
   }
   playback.owner = 2; context.updateNextSeasonHint(video); assert.equal(calls.at(-1)[3], false);

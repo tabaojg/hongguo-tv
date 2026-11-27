@@ -1,6 +1,6 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const source=fs.readFileSync(require.resolve('../core/cmd/hongguotv/ui/app.js'),'utf8');
-const start=source.indexOf("    if (zone === 'repairSettings') {"),end=source.indexOf("    if (zone === 'appUpdates') {",start);
+const start=source.indexOf("    if (zone === 'repairSettings') {"),end=source.indexOf("    if (zone === 'announcements') {",start);
 const announcementStart=source.indexOf("    if (zone === 'announcements') {"),announcementEnd=source.indexOf("    if (zone ===",announcementStart+12);
 function fixture(on){
  const nodes={toggle:{id:'toggle'},check:{id:'check'},restore:{id:'restore'},sidebar:{id:'sidebar'},menu:{id:'menu'},notice:{id:'notice'}};

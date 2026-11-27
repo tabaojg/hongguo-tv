@@ -31,7 +31,7 @@ function normalize(document,now){
   seen[item.id]=true;return true;
  }).map(function(item){
   var out={id:item.id,enabled:true,title:String(item.title),summary:String(item.summary||''),body:String(item.body||''),platforms:item.platforms,before_version:item.before_version,published_at:item.published_at,expires_at:item.expires_at,dismissible:item.dismissible!==false};
-  if(item.action&&['check_update','repair_playback'].indexOf(item.action.type)>=0){out.action={type:item.action.type,label:String(item.action.label||'')};if(Number.isSafeInteger(item.action.min_revision)&&item.action.min_revision>0)out.action.min_revision=item.action.min_revision;}
+  if(item.action&&['repair_playback'].indexOf(item.action.type)>=0){out.action={type:item.action.type,label:String(item.action.label||'')};if(Number.isSafeInteger(item.action.min_revision)&&item.action.min_revision>0)out.action.min_revision=item.action.min_revision;}
   return out;
  }).sort(function(a,b){return String(b.published_at||'').localeCompare(String(a.published_at||''));});
 }

@@ -1,6 +1,6 @@
 # Android 应用推荐
 
-侧栏入口为「应用」，仅 Android 壳拥有推荐应用安装桥时显示，位于打赏之后。桌面和 webOS 不显示入口。当前固定推荐豆逗 TV（`rocks.aston.doudoutv`）、球赛直播（`cc.kafeizhibo.tv`）和云映 TV（`cc.yunying.tv`），均至少 Android 6.0 / API 23。
+侧栏入口为「应用」，仅 Android 壳拥有推荐应用安装桥时显示，位于追更之后。桌面和 webOS 不显示入口。当前固定推荐豆逗 TV（`rocks.aston.doudoutv`）、球赛直播（`cc.kafeizhibo.tv`）和云映 TV（`cc.yunying.tv`），均至少 Android 6.0 / API 23。
 
 ## 行为
 

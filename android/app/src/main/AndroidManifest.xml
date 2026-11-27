@@ -57,18 +57,11 @@
             </intent-filter>
         </receiver>
 
-        <provider android:name=".UpdateFileProvider" android:authorities="${applicationId}.updates"
-            android:exported="false" android:grantUriPermissions="true" />
-
         <provider android:name="androidx.core.content.FileProvider" android:authorities="${applicationId}.recommendedapps"
             android:exported="false" android:grantUriPermissions="true">
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/recommended_app_paths" />
         </provider>
 
-        <receiver
-            android:name=".UpdateInstallReceiver"
-            android:enabled="true"
-            android:exported="false" />
         <receiver android:name=".RecommendedAppInstallReceiver" android:exported="false" />
 
         <service

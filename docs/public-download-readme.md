@@ -16,12 +16,14 @@
 
 ## 当前版本
 
-- [Android TV 最新正式版本](https://github.com/aston314/hongguo-tv-releases/releases/tag/v0.2.182)
-- [LG webOS 测试版 `.ipk`](https://github.com/aston314/hongguo-tv-releases/releases/tag/webos-v0.2.182-test.27)
-- [Linux x86_64 AppImage 测试版](https://github.com/aston314/hongguo-tv-releases/releases/tag/linux-v0.2.182-test.1)
-- [桌面版下载（macOS / Windows）](https://github.com/aston314/hongguo-tv-releases/releases/tag/desktop-v0.2.182)
+- [Android TV 最新正式版本](https://github.com/aston314/hongguo-tv-releases/releases/tag/v0.2.184)
+- [LG webOS 测试版 `.ipk`](https://github.com/aston314/hongguo-tv-releases/releases/tag/webos-v0.2.184-test.27)
+- [Linux x86_64 AppImage 测试版](https://github.com/aston314/hongguo-tv-releases/releases/tag/linux-v0.2.184-test.1)
+- [桌面版下载（macOS / Windows）](https://github.com/aston314/hongguo-tv-releases/releases/tag/desktop-v0.2.184)
 
 Android TV 和 webOS 的“找剧”支持收藏手机扫码页。手机与电视在同一局域网时，可以重复发送剧名。
+
+本版修复剧集目录只显示前三集的问题，Android、桌面及 webOS 同步恢复完整选集。
 
 默认播放规则会自动更新，也可在“设置 → 播放保障”手动检查，无需重启应用。保留原有可选 JS 修复与原生兜底；繁体界面新增剧名、简介的本地转换。
 
@@ -31,9 +33,9 @@ Android TV 和 webOS 的“找剧”支持收藏手机扫码页。手机与电�
 
 | 版本 | 下载文件 | 播放方式 |
 | --- | --- | --- |
-| 标准版 | `hongguo-tv-0.2.182.apk` | HTML5 主播放，失败时有限切换到 Media3 |
-| MPV 版 | `hongguo-tv-mpv-0.2.182.apk` | MPV 自动解码，可手动选择软件解码 |
-| Android 5 兼容版 | `hongguo-tv-android5-0.2.182.apk` | HTML5 主播放，失败时有限切换到 Media3 |
+| 标准版 | `hongguo-tv-0.2.184.apk` | HTML5 主播放，失败时有限切换到 Media3 |
+| MPV 版 | `hongguo-tv-mpv-0.2.184.apk` | MPV 自动解码，可手动选择软件解码 |
+| Android 5 兼容版 | `hongguo-tv-android5-0.2.184.apk` | HTML5 主播放，失败时有限切换到 Media3 |
 
 三个 APK 支持同一组 Android ABI，使用独立包名，可以同时安装，但账号、历史和设置分别保存。
 
@@ -41,18 +43,18 @@ Android 5 兼容版适用 Android 5.0/5.1，沿用标准版播放方式。已安
 
 ## 桌面版
 
-[桌面版 0.2.182](https://github.com/aston314/hongguo-tv-releases/releases/tag/desktop-v0.2.182) 提供 macOS 通用 ZIP 和 Windows x64 ZIP，并支持小窗播放，横竖屏自动适配，拖动缩放保持视频比例。macOS 需要 11 或更高版本；Windows 需要 Microsoft Edge WebView2 Runtime，默认播放 HEVC 依赖系统 HEVC Video Extensions；如仍无法播放，可在“设置 → 播放解码”选择“CPU 软解（WASM）”，下次播放或切集生效。软解支持 HEVC/H.264，不支持 ByteVC2，流畅度取决于 CPU，倍速暂时会改变音调。
+[桌面版 0.2.184](https://github.com/aston314/hongguo-tv-releases/releases/tag/desktop-v0.2.184) 提供 macOS 通用 ZIP 和 Windows x64 ZIP，并支持小窗播放，横竖屏自动适配，拖动缩放保持视频比例。macOS 需要 11 或更高版本；Windows 需要 Microsoft Edge WebView2 Runtime，默认播放 HEVC 依赖系统 HEVC Video Extensions；如仍无法播放，可在“设置 → 播放解码”选择“CPU 软解（WASM）”，下次播放或切集生效。软解支持 HEVC/H.264，不支持 ByteVC2，流畅度取决于 CPU，倍速暂时会改变音调。
 
 ## webOS
 
-[webOS 0.2.182 测试版](https://github.com/aston314/hongguo-tv-releases/releases/tag/webos-v0.2.182-test.27) 需要 LG Developer Mode 和 webOS 开发工具安装。它是同一应用版本的独立手动测试构建，使用现有 HTML5 播放流程，属于测试版渠道。
+[webOS 0.2.184 测试版](https://github.com/aston314/hongguo-tv-releases/releases/tag/webos-v0.2.184-test.27) 需要 LG Developer Mode 和 webOS 开发工具安装。它是同一应用版本的独立手动测试构建，使用现有 HTML5 播放流程，属于测试版渠道。
 
 ## Linux
 
-[Linux x86_64 AppImage 0.2.182 测试版](https://github.com/aston314/hongguo-tv-releases/releases/tag/linux-v0.2.182-test.1) 依赖系统 WebKitGTK、GTK 3、GStreamer 及 HEVC/AAC 解码插件。下载后为文件增加执行权限，再运行 AppImage。
+[Linux x86_64 AppImage 0.2.184 测试版](https://github.com/aston314/hongguo-tv-releases/releases/tag/linux-v0.2.184-test.1) 依赖系统 WebKitGTK、GTK 3、GStreamer 及 HEVC/AAC 解码插件。下载后为文件增加执行权限，再运行 AppImage。
 
 ## 更新与反馈
 
-Android 标准版使用 `update.json`，MPV 版使用 `update-mpv.json`，Android 5 兼容版使用 `update-android5.json`。普通用户只需下载 APK；更新清单和校验文件用于应用内更新或核对文件完整性。
+应用内更新已移除，请从发布页手动下载对应安装包覆盖安装。发布侧仍保留 `update.json`、`update-mpv.json` 等清单和校验文件，仅供发布流程与文件完整性核对，普通用户无需使用。
 
 播放异常请附设备型号、Android/webOS/桌面系统版本、使用的安装包，以及应用内“播放诊断”截图。Windows 请注明使用默认播放还是 CPU 软解，并附清晰度和 CPU 型号。

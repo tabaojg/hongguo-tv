@@ -44,7 +44,7 @@ function fixture(cardCount) {
     },
     window: {getComputedStyle(element) { reads[element.zone]++; return {display: 'block', visibility: 'visible'}; }},
     coreConnectionModalOpen: false, scanModalOpen: () => false, accountCountryModalOpen: false,
-    accountKeypadOpen: () => false, supportModalOpen: false, rankFilterOpen: false,
+    accountKeypadOpen: () => false, smsQROpen: false, rankFilterOpen: false,
     actorWorksOpen: false, detailCastOpen: false, confirmOpen: false, playbackCommandMenuOpen: false,
     playerOptionsOpen: false, discussionOpen: false, endRecommendations: null, detailModalOpen: false,
     androidShell: true, lastPageFocus: {}, pageMode: () => 'history',
@@ -88,7 +88,7 @@ test('focus eligibility preserves all modal boundaries and revalidates hidden, d
   const f = fixture(0), c = f.context, item = f.items[0];
   const modals = {
     coreConnectionModalOpen: '#core-connection-modal', accountCountryModalOpen: '#account-country-modal',
-    supportModalOpen: '#support-modal', rankFilterOpen: '#rank-filter-modal', actorWorksOpen: '#actor-works-modal',
+    smsQROpen: '#sms-qr-modal', rankFilterOpen: '#rank-filter-modal', actorWorksOpen: '#actor-works-modal',
     detailCastOpen: '#detail-cast-modal', confirmOpen: '#confirm-modal', playbackCommandMenuOpen: '#playback-command-menu',
     playerOptionsOpen: '#player-options', discussionOpen: '#discussion-panel', detailModalOpen: '#detail-modal'
   };

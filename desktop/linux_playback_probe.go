@@ -60,7 +60,7 @@ func runLinuxPlaybackProbe() error {
 		return err
 	}
 	defer os.RemoveAll(data)
-	app := &desktopApp{core: newCoreHost(), updater: newDesktopUpdater(0, data, data, desktopPlatform())}
+	app := &desktopApp{core: newCoreHost()}
 	app.core.dataDir = data
 	var mu sync.Mutex
 	var result map[string]interface{}

@@ -122,7 +122,7 @@ test('explicit line-break tokens render as elements instead of HTML', () => {
     },
     children: [],
     appendChild(child) { this.children.push(child); this.textContent += child.textContent || ''; },
-    getAttribute(name) { return name === 'data-i18n' ? 'support.description' : null; }
+    getAttribute(name) { return name === 'data-i18n' ? 'ui.numberInputHint' : null; }
   };
   context.document.querySelectorAll = function (selector) { return selector === '[data-i18n]' ? [node] : []; };
   context.HongguoI18n.apply(context.document);

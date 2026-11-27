@@ -55,7 +55,7 @@ test('focus validation skips hidden cached cards without resolving their styles'
     document: {querySelectorAll: () => hiddenCards.concat(day, invisible, disabled, modal)},
     window: {getComputedStyle: element => { reads.push(element); assert.ok(element.style); return element.style; }},
     coreConnectionModalOpen: false, scanModalOpen: () => false, accountCountryModalOpen: false,
-    accountKeypadOpen: () => false, supportModalOpen: false, rankFilterOpen: false,
+    accountKeypadOpen: () => false, smsQROpen: false, rankFilterOpen: false,
     detailCastOpen: false, confirmOpen: false, playerOptionsOpen: false,
     discussionOpen: false, endRecommendations: null, detailModalOpen: false
   });

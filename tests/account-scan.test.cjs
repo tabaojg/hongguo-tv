@@ -67,7 +67,7 @@ test('synchronous start failure allows retry without an unhandled rejection',asy
   f.controller.start();await tick();assert.equal(f.controller.snapshot().id,'new');
 });
 test('QR is first and default on every capable service, with a phone fallback for older services',async()=>{
-  const source=fs.readFileSync('core/cmd/hongguotv/ui/app.js','utf8');const nodes={};
+  const source=fs.readFileSync(require.resolve('../core/cmd/hongguotv/ui/app.js'),'utf8');const nodes={};
   const document={getElementById(id) {return nodes[id]||(nodes[id]={disabled:false,attrs:{},classes:new Set(),classList:{toggle(n,v){v?nodes[id].classes.add(n):nodes[id].classes.delete(n);},add(n){nodes[id].classes.add(n);}},setAttribute(n,v){this.attrs[n]=v;},getAttribute(n){return this.attrs[n]||'';},removeAttribute(n){delete this.attrs[n];}});}};
   const context=vm.createContext({document,accountLoginMethod:'qr',pageMode:()=> 'player',webosShell:true,accountData:{qr_login_available:false},accountQR:{snapshot:()=>({active:true,image:'https://bad',state:'pending'})},accountBusy:false,uiText:k=>k});
   vm.runInContext(source.slice(source.indexOf('  function renderAccountQR('),source.indexOf('  function cancelAccountQR(')),context);
@@ -88,11 +88,11 @@ test('QR is first and default on every capable service, with a phone fallback fo
   vm.runInContext(source.slice(source.indexOf('  function startAccountQR('),source.indexOf('  function accountFailureText(')),context);
   context.startAccountQR();await tick();
   assert.equal(stopped,1);assert.equal(starts,1);assert.equal(context.accountLoginMethod,'qr');assert.equal(context.accountQR.snapshot().state,'pending');
-  const html=fs.readFileSync('core/cmd/hongguotv/ui/index.html','utf8');assert.ok(html.indexOf('id="account-method-qr"')<html.indexOf('id="account-method-phone"'));
+  const html=fs.readFileSync(require.resolve('../core/cmd/hongguotv/ui/index.html'),'utf8');assert.ok(html.indexOf('id="account-method-qr"')<html.indexOf('id="account-method-phone"'));
 });
 
 test('logout clears the completed QR and waits for confirmation to close before starting another code',async()=>{
-  const source=fs.readFileSync('core/cmd/hongguotv/ui/app.js','utf8');
+  const source=fs.readFileSync(require.resolve('../core/cmd/hongguotv/ui/app.js'),'utf8');
   let cancelled=0, started=0;
   const context=vm.createContext({confirmationGeneration:0,document:{activeElement:{},querySelectorAll:()=>[],getElementById:()=>({classList:{remove(){}},setAttribute(){}})},
     smsVerification:null,accountRequest:()=>Promise.resolve(true),accountQR:{cancel(){cancelled++;}},accountLoginMethod:'qr',pageMode:()=> 'account',

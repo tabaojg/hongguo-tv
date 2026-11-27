@@ -21,11 +21,11 @@ test('remote announcements require enabled=true and ignore expired entries', () 
 test('announcement action and body are reduced to safe UI fields', () => {
   const item = normalizeItem({
     id: 'playback', enabled: true, title: '  播放服务  ', body: '  稍后重试  ',
-    action: { type: 'check_update', label: '  更新  ' }, dismissible: false
+    action: { type: 'repair_playback', label: '  修复播放  ' }, dismissible: false
   }, Date.now());
   assert.deepEqual(item, {
     id: 'playback', kind: '', level: '', status: '', title: '播放服务', summary: '', body: '稍后重试',
-    dismissible: false, action: { type: 'check_update', label: '更新' }
+    dismissible: false, action: { type: 'repair_playback', label: '修复播放' }
   });
 });
 

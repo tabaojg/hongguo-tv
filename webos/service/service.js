@@ -20,7 +20,6 @@
     var watchStatistics = options.watchStatistics || require('./watch-statistics')({ dataDir: provider.dataDirectory ? provider.dataDirectory() : process.env.HONGGUO_WEBOS_DATA_DIR || require('os').tmpdir() });
     var numberInput = options.numberInput || require('./number-input')();
     var phoneSearch = options.phoneSearch || require('./phone-search')({dataDir:provider.dataDirectory ? provider.dataDirectory() : process.env.HONGGUO_WEBOS_DATA_DIR});
-    var updates = options.updates || require('./updates')();
     var announcements = options.announcements || require('./announcements')();
     var repair = options.playbackRepair || (provider.setPlaybackRepair ? require('./playback-repair')({dataDir:provider.dataDirectory()}) : {
       start:function(){},close:function(){return Promise.resolve();},status:function(){return {supported:false,enabled:false,checking:false,source:'native',event:'unsupported',change:0};}
@@ -172,10 +171,6 @@
           if(body.action==='check'){repair.check();profile.check();}else repair.setEnabled(body.action==='enable');
           data(req,res,repairStatus());
         }).catch(function(){json(res,500,{ok:false,error:'REPAIR_SETTING_FAILED'},req);});
-      }
-      if (pathName === '/api/v1/webos/update') {
-        if (req.method !== 'GET' && req.method !== 'HEAD') return json(res, 405, { ok: false, error: 'METHOD_NOT_ALLOWED' }, req);
-        return updates.check().then(function (result) { data(req, res, result); }, function (error) { failure(req, res, error); });
       }
       if (pathName === '/api/v1/player/cache-session') {
         if (req.method !== 'POST') return json(res, 405, { ok: false, error: 'METHOD_NOT_ALLOWED' }, req);
